@@ -11,6 +11,9 @@ const oidcConfig = {
   scope: "openid profile email",
   response_type: "code",
   userStore: new WebStorageStateStore({ store: window.localStorage }),
+  onSigninCallback: (): void => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  },
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
