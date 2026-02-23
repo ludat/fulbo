@@ -13,10 +13,11 @@ services:
         path: /api
 
   frontend:
-    repository: ghcr.io/ludat/fulbo/migrations
-    source:
-      type: digest
-      tag: main
+    image:
+      repository: ghcr.io/ludat/fulbo/migrations
+      source:
+        type: digest
+        tag: main
     secrets:
       - config
     routes:
@@ -25,6 +26,8 @@ services:
 hooks:
   pre-deploy:
     - name: migrations
+      secrets:
+        - config
       image:
         repository: ghcr.io/ludat/fulbo/migrations
         source:
