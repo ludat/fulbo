@@ -1,0 +1,41 @@
+production: true
+services:
+  backend:
+    image:
+      repository: postgrest/postgrest
+      tag: v14.5
+    port: 3000
+    secrets:
+      - config
+    dependencies: [pg]
+    routes:
+      - host: fulbo.ludat.io
+        path: /api
+
+  frontend:
+    repository: ghcr.io/ludat/fulbo/migrations
+    source:
+      type: digest
+      tag: main
+    secrets:
+      - config
+    routes:
+      - host: fulbo.ludat.io
+
+hooks:
+  pre-deploy:
+    - name: migrations
+      image:
+        repository: ghcr.io/ludat/fulbo/migrations
+        source:
+          type: digest
+          tag: main
+      command:
+        - sh
+        - -c
+        - |
+          exit 1
+
+dependencies:
+  pg:
+    type: postgres
