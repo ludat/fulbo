@@ -57,7 +57,7 @@ export function AttendanceList({
   });
 
   const isAdmin = members?.some(
-    (m) => m.user_id === currentUserId && m.role === "admin"
+    (m) => m.user_id === currentUserId && m.role === "admin",
   );
 
   const upsert = useMutation({
@@ -94,7 +94,7 @@ export function AttendanceList({
     return (
       <div className="attendance-list">
         <ul>
-          {members.map((m) => {
+          {members.map((m: Member) => {
             const currentStatus = attendanceByUser.get(m.user_id);
             return (
               <li key={m.user_id} className="member-item attendance-admin-row">
@@ -140,9 +140,13 @@ export function AttendanceList({
   }
 
   // Non-admin view: simple grouped list
-  if (!rows?.length) return <p className="empty-state">Nadie confirmo todavia.</p>;
+  if (!rows?.length)
+    return <p className="empty-state">Nadie confirmo todavia.</p>;
 
-  const grouped = Object.groupBy(rows, (r) => r.status);
+  const grouped = rows.reduce<Record<string, AttendanceRow[]>>((acc, r) => {
+    (acc[r.status] ??= []).push(r);
+    return acc;
+  }, {});
 
   return (
     <div className="attendance-list">
@@ -155,7 +159,7 @@ export function AttendanceList({
               {statusLabels[status]} ({group.length})
             </h3>
             <ul>
-              {group.map((r) => (
+              {group.map((r: AttendanceRow) => (
                 <li key={r.user_id} className="member-item">
                   {r.users.avatar_url && (
                     <img
