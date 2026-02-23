@@ -1,5 +1,5 @@
 server {
-    listen 80;
+    listen ${PORT:-8000};
     root /usr/share/nginx/html;
     index index.html;
 
@@ -9,5 +9,9 @@ server {
         sub_filter '__VITE_OIDC_AUTHORITY__' '${VITE_OIDC_AUTHORITY}';
         sub_filter '__VITE_OIDC_CLIENT_ID__' '${VITE_OIDC_CLIENT_ID}';
         sub_filter_once off;
+    }
+
+    location /api/ {
+        proxy_pass http://${POSTGREST_UPSTREAM}/;
     }
 }
