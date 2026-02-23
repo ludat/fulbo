@@ -1,0 +1,13 @@
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        sub_filter '__VITE_API_URL__' '${VITE_API_URL}';
+        sub_filter '__VITE_OIDC_AUTHORITY__' '${VITE_OIDC_AUTHORITY}';
+        sub_filter '__VITE_OIDC_CLIENT_ID__' '${VITE_OIDC_CLIENT_ID}';
+        sub_filter_once off;
+    }
+}

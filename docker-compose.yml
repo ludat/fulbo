@@ -1,0 +1,118 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: fulbo
+      POSTGRES_USER: authenticator
+      POSTGRES_PASSWORD: authenticator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    command: postgres -c log_statement=all
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authenticator -d postgres"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+  idp:
+    image: quay.io/keycloak/keycloak:26.5.3
+    command: start-dev
+    ports:
+      - "8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+
+  migrate:
+    image: ghcr.io/jackc/tern:v2.3.5
+    # command: migrate --destination 1
+    command: migrate
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: fulbo
+      PGUSER: authenticator
+      PGPASSWORD: authenticator
+    volumes:
+      - ./db:/db
+    working_dir: /db/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  schema:
+    image: pgplex/pgschema:latest
+    command: >-
+      apply
+      --file main.sql
+      --schema api
+      --auto-approve
+    #   --debug
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: fulbo
+      PGUSER: authenticator
+      PGPASSWORD: authenticator
+      PGAPPNAME: api
+      PGSCHEMA_PLAN_HOST: db
+      PGSCHEMA_PLAN_PORT: "5432"
+      PGSCHEMA_PLAN_DB: pgschema_plan
+      PGSCHEMA_PLAN_USER: authenticator
+      PGSCHEMA_PLAN_PASSWORD: authenticator
+    volumes:
+      - ./db:/db
+    working_dir: /db
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  postgrest:
+    image: postgrest/postgrest:v14.5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PGRST_DB_URI: postgres://authenticator:authenticator@db:5432/fulbo
+      PGRST_DB_SCHEMAS: api
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: >-
+        {
+          "kid": "tQNHaAhvKTH9LTo6P5D884CR2_O8mwR5DDAp92PfuJ8",
+          "kty": "RSA",
+          "alg": "RS256",
+          "use": "sig",
+          "x5c": [
+            "MIICmTCCAYECBgGceZqxBzANBgkqhkiG9w0BAQsFADAQMQ4wDAYDVQQDDAVmdWxibzAeFw0yNjAyMjAwNTUwMDZaFw0zNjAyMjAwNTUxNDZaMBAxDjAMBgNVBAMMBWZ1bGJvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0JbetK2d3OiWNJUN0pIAcaVLwkUgB4ir5a3Uhp+1o/hNhRGU6f7QXOaiH8L46ZHcE5ZlW8WeyBaVNXdRFKfAyGqkLRsjLzWdnqMJrLsbPA20Sv7ZLPbR9nm3k9OYVj5bnmvHVJhrBTaFcd3O9da1dasHywnbp5Qo0Nor8apqNxieDR+vrX8fsTJvSD504hLjzOAJsiN+4z7UqAvjNDsbwnWXXdRuDe4QyUY8zR0WLRvlbJaHsk5jVAvyThmEnNLPRiljFkNJBdLz0deoN6jaZ6n7Pjl493XmPEJv1LudRLmu9aHDEMJWMzFjz89ytwFWKb9m79Fu3k5DdgibZmra+QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQA1oNBoicuT/EhCCrH441vnlScgUWRB3uctMXaGW9du3/fA2xw1UZNIaUyx4fKj39UieCQJC3vLqL2uQ5n8gjFFt/xKnyL3rkeVvRX5PxqZ/uiptKk2yz01smgsI0/4UHJSwpPfkMzLzRpKUlUGvJBKCyBwtKA/8/fAeWG/wJESmr5bugKbW70HdnPsynAydHMtXZ5MRiOmp7C2qmy79VCnhge3VqW7eQLREKt3WL7cPGCmrXjjQtWNvjQDJo7srHptEQvcDi89zJVX0USMpe5AWdrABheahiQSY4xDgTwpbfKlhmEsbHeLxnYaA0lO2XV3y8L+jIkS3WMtUMAigHWh"
+          ],
+          "x5t": "KfItp4LjNl-BvVoQ4YWPBG8ppl0",
+          "x5t#S256": "aLmvJD7-iSya2WVeNSzD1Fi_G7mkcvNmoaMKpNfWnKI",
+          "n": "0JbetK2d3OiWNJUN0pIAcaVLwkUgB4ir5a3Uhp-1o_hNhRGU6f7QXOaiH8L46ZHcE5ZlW8WeyBaVNXdRFKfAyGqkLRsjLzWdnqMJrLsbPA20Sv7ZLPbR9nm3k9OYVj5bnmvHVJhrBTaFcd3O9da1dasHywnbp5Qo0Nor8apqNxieDR-vrX8fsTJvSD504hLjzOAJsiN-4z7UqAvjNDsbwnWXXdRuDe4QyUY8zR0WLRvlbJaHsk5jVAvyThmEnNLPRiljFkNJBdLz0deoN6jaZ6n7Pjl493XmPEJv1LudRLmu9aHDEMJWMzFjz89ytwFWKb9m79Fu3k5DdgibZmra-Q",
+          "e": "AQAB"
+        }
+
+      # PGRST_JWT_ROLE_CLAIM_KEY: .role
+      PGRST_JWT_ROLE_CLAIM_KEY: .resource_access.fulbo.roles[0]
+      # PGRST_DB_PRE_REQUEST: api.pre_request
+    ports:
+      - "3000:3000"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - ./deploy/pgadmin-servers.json:/pgadmin4/servers.json:ro
+
+volumes:
+  pgdata:
