@@ -14,7 +14,7 @@ services:
 
   frontend:
     image:
-      repository: ghcr.io/ludat/fulbo/migrations
+      repository: ghcr.io/ludat/fulbo/frontend
       source:
         type: digest
         tag: main
