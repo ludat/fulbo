@@ -8,9 +8,6 @@ services:
     secrets:
       - config
     dependencies: [pg]
-    routes:
-      - host: fulbo.ludat.io
-        path: /api
 
   frontend:
     image:
