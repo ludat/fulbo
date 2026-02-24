@@ -6,6 +6,8 @@ CREATE TABLE attendance (
     PRIMARY KEY (match_id, user_id)
 );
 
+GRANT ALL PRIVILEGES ON TABLE attendance TO app_user;
+
 ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
 
 -- Members can see attendance for matches in their groups

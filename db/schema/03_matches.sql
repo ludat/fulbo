@@ -8,6 +8,8 @@ CREATE TABLE matches (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+GRANT ALL PRIVILEGES ON TABLE matches TO app_user;
+
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY matches_select ON matches FOR SELECT TO app_user

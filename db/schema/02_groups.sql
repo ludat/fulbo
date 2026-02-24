@@ -66,31 +66,26 @@ CREATE TRIGGER trg_group_creator_admin
     EXECUTE FUNCTION add_creator_as_admin();
 
 -- Join a group using an invite token
-CREATE FUNCTION join_group_by_invite(invite_token TEXT) RETURNS group_members AS $$
-DECLARE
-    invite group_invites;
-    result group_members;
+CREATE FUNCTION join_group_by_invite(invite_token TEXT) RETURNS SETOF group_members AS $$
 BEGIN
-    SELECT * INTO invite FROM group_invites
-    WHERE token = invite_token;
-
-    IF NOT FOUND THEN
+    IF NOT EXISTS (SELECT 1 FROM group_invites WHERE token = invite_token) THEN
         RAISE EXCEPTION 'Invalid invite token'
             USING ERRCODE = 'P0002';
     END IF;
 
+    RETURN QUERY
     INSERT INTO group_members (group_id, user_id, role)
-    VALUES (invite.group_id, current_user_id(), 'member')
+    SELECT gi.group_id, current_user_id(), 'member'
+    FROM group_invites gi WHERE gi.token = invite_token
     ON CONFLICT (group_id, user_id) DO NOTHING
-    RETURNING * INTO result;
-
-    RETURN result;
+    RETURNING *;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION join_group_by_invite(TEXT) TO app_user;
 
 -- RLS: groups
+GRANT ALL PRIVILEGES ON TABLE groups TO app_user;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY groups_select ON groups FOR SELECT TO app_user
@@ -103,6 +98,7 @@ CREATE POLICY groups_delete ON groups FOR DELETE TO app_user
     USING (is_group_admin(id));
 
 -- RLS: group_members
+GRANT ALL PRIVILEGES ON TABLE group_members TO app_user;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY groups_members_select ON group_members FOR SELECT TO app_user
@@ -112,6 +108,7 @@ CREATE POLICY groups_members_select ON group_members FOR SELECT TO app_user
 -- Group creator is added automatically by trigger (SECURITY DEFINER)
 
 -- RLS: group_invites (admin-only)
+GRANT ALL PRIVILEGES ON TABLE group_invites TO app_user;
 ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY group_invites_select ON group_invites FOR SELECT TO app_user
@@ -120,3 +117,25 @@ CREATE POLICY group_invites_insert ON group_invites FOR INSERT TO app_user
     WITH CHECK (is_group_admin(group_id));
 CREATE POLICY group_invites_delete ON group_invites FOR DELETE TO app_user
     USING (is_group_admin(group_id));
+
+
+GRANT SELECT, UPDATE ON users TO app_user;
+
+-- Helper: check if a user shares any group with the current user
+-- SECURITY DEFINER to bypass RLS on group_members
+CREATE FUNCTION shares_group_with_current_user(uid UUID) RETURNS BOOLEAN AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM group_members gm1
+        JOIN group_members gm2 ON gm1.group_id = gm2.group_id
+        WHERE gm1.user_id = current_user_id()
+          AND gm2.user_id = uid
+    );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY users_select ON users FOR SELECT TO app_user
+    USING (id = current_user_id() OR shares_group_with_current_user(id));
+
+CREATE POLICY users_update ON users FOR UPDATE TO app_user
+    USING (id = current_user_id());
