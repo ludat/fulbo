@@ -33,6 +33,7 @@ hooks:
         source:
           type: digest
           tag: main
+      dependencies: [pg]
       command:
         - sh
         - -c
