@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /app
-ENV PORT 8080
+ENV PORT=8080
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
