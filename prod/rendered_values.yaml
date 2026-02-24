@@ -38,7 +38,8 @@ hooks:
         - sh
         - -c
         - |
-          exit 1
+            /tern migrate
+
 
 dependencies:
   pg:
