@@ -2,6 +2,7 @@ CREATE TABLE groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     description TEXT,
+    deleted_at TIMESTAMPTZ,
     created_by UUID NOT NULL REFERENCES users(id) DEFAULT current_user_id(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -98,11 +99,16 @@ CREATE POLICY groups_delete ON groups FOR DELETE TO app_user
     USING (is_group_admin(id));
 
 -- RLS: group_members
-GRANT ALL PRIVILEGES ON TABLE group_members TO app_user;
+GRANT SELECT ON group_members TO app_user;
+GRANT UPDATE (role) ON group_members TO app_user;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY groups_members_select ON group_members FOR SELECT TO app_user
     USING (is_group_member(group_id));
+
+CREATE POLICY group_members_update ON group_members FOR UPDATE TO app_user
+    USING (is_group_admin(group_id))
+    WITH CHECK (is_group_admin(group_id));
 
 -- No direct insert policy: members join via invite links (join_group_by_invite)
 -- Group creator is added automatically by trigger (SECURITY DEFINER)

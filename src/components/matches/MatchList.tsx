@@ -12,7 +12,7 @@ type Match = {
 
 type MatchListProps = {
   groupId: string;
-  filter?: "upcoming" | "past";
+  filter?: "upcoming" | "all";
 };
 
 export function MatchList({ groupId, filter = "upcoming" }: MatchListProps) {
@@ -23,12 +23,13 @@ export function MatchList({ groupId, filter = "upcoming" }: MatchListProps) {
     filter === "upcoming"
       ? {
           group_id: `eq.${groupId}`,
+          deleted_at: "is.null",
           and: `(starts_at.gte.${now},starts_at.lte.${oneWeek})`,
           order: "starts_at.asc",
         }
       : {
           group_id: `eq.${groupId}`,
-          starts_at: `lt.${now}`,
+          deleted_at: "is.null",
           order: "starts_at.desc",
         };
 
@@ -42,9 +43,7 @@ export function MatchList({ groupId, filter = "upcoming" }: MatchListProps) {
   if (!matches?.length) {
     return (
       <p className="empty-state">
-        {filter === "upcoming"
-          ? "No hay proximos partidos."
-          : "No hay partidos anteriores."}
+        {filter === "upcoming" ? "No hay proximos partidos." : "No hay partidos."}
       </p>
     );
   }

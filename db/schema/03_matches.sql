@@ -4,6 +4,7 @@ CREATE TABLE matches (
     location TEXT,
     starts_at TIMESTAMPTZ NOT NULL,
     notes TEXT,
+    deleted_at TIMESTAMPTZ,
     created_by UUID NOT NULL REFERENCES users(id) DEFAULT current_user_id(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

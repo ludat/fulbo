@@ -6,8 +6,10 @@ import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { GroupList } from "./components/groups/GroupList";
 import { GroupForm } from "./components/groups/GroupForm";
+import { GroupEditForm } from "./components/groups/GroupEditForm";
 import { GroupDetail } from "./components/groups/GroupDetail";
 import { MatchForm } from "./components/matches/MatchForm";
+import { MatchEditForm } from "./components/matches/MatchEditForm";
 import { MatchDetail } from "./components/matches/MatchDetail";
 import { PastMatches } from "./components/matches/PastMatches";
 import { JoinByInvite } from "./components/groups/JoinByInvite";
@@ -45,6 +47,7 @@ function AppRoutes() {
         <Route index element={<GroupList />} />
         <Route path="groups/new" element={<GroupForm />} />
         <Route path="groups/:groupId" element={<GroupDetail />} />
+        <Route path="groups/:groupId/edit" element={<GroupEditForm />} />
         <Route
           path="groups/:groupId/matches/new"
           element={<MatchForm />}
@@ -56,6 +59,10 @@ function AppRoutes() {
         <Route
           path="groups/:groupId/matches/:matchId"
           element={<MatchDetail />}
+        />
+        <Route
+          path="groups/:groupId/matches/:matchId/edit"
+          element={<MatchEditForm />}
         />
         <Route path="invite/:token" element={<JoinByInvite />} />
       </Route>

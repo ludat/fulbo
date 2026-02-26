@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
 import { MatchList } from "../matches/MatchList";
 import { MemberList } from "./MemberList";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type Group = {
   id: string;
@@ -23,11 +25,13 @@ export function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
   const auth = useAuth();
   const currentUserId = auth.user?.profile.sub;
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups", groupId],
     queryFn: () =>
-      api<Group[]>("/groups", { params: { id: `eq.${groupId}` } }),
+      api<Group[]>("/groups", { params: { id: `eq.${groupId}`, deleted_at: "is.null" } }),
   });
 
   const { data: members } = useQuery({
@@ -45,6 +49,21 @@ export function GroupDetail() {
     (m) => m.user_id === currentUserId && m.role === "admin"
   );
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const deleteGroup = useMutation({
+    mutationFn: () =>
+      api("/groups", {
+        method: "PATCH",
+        params: { id: `eq.${groupId}` },
+        body: { deleted_at: new Date().toISOString() },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      navigate("/");
+    },
+  });
+
   const group = groups?.[0];
 
   if (isLoading) return <div className="loading">Cargando...</div>;
@@ -60,12 +79,35 @@ export function GroupDetail() {
           )}
         </div>
         {isAdmin && (
-          <Link
-            to={`/groups/${groupId}/matches/new`}
-            className="btn btn-primary"
-          >
-            Programar Partido
-          </Link>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              className="btn btn-danger"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Eliminar Grupo
+            </button>
+            {showDeleteDialog && (
+              <ConfirmDialog
+                message={`¿Eliminar el grupo "${group.name}"? Esta acción no se puede deshacer.`}
+                confirmLabel="Sí, eliminar"
+                onConfirm={() => { setShowDeleteDialog(false); deleteGroup.mutate(); }}
+                onCancel={() => setShowDeleteDialog(false)}
+                disabled={deleteGroup.isPending}
+              />
+            )}
+            <Link
+              to={`/groups/${groupId}/edit`}
+              className="btn btn-secondary"
+            >
+              Editar
+            </Link>
+            <Link
+              to={`/groups/${groupId}/matches/new`}
+              className="btn btn-primary"
+            >
+              Programar Partido
+            </Link>
+          </div>
         )}
       </div>
 
@@ -77,7 +119,7 @@ export function GroupDetail() {
           className="back-link"
           style={{ marginTop: "0.5rem" }}
         >
-          Ver partidos anteriores
+          Ver todos los partidos
         </Link>
       </section>
 

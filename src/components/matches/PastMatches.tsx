@@ -9,8 +9,8 @@ export function PastMatches() {
       <Link to={`/groups/${groupId}`} className="back-link">
         &larr; Volver al grupo
       </Link>
-      <h1>Partidos Anteriores</h1>
-      <MatchList groupId={groupId!} filter="past" />
+      <h1>Todos los Partidos</h1>
+      <MatchList groupId={groupId!} filter="all" />
     </div>
   );
 }

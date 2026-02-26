@@ -62,6 +62,30 @@ export function MemberList({ groupId }: { groupId: string }) {
     },
   });
 
+  const promoteToAdmin = useMutation({
+    mutationFn: (userId: string) =>
+      api("/group_members", {
+        method: "PATCH",
+        params: { group_id: `eq.${groupId}`, user_id: `eq.${userId}` },
+        body: { role: "admin" },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group_members", groupId] });
+    },
+  });
+
+  const demoteToMember = useMutation({
+    mutationFn: (userId: string) =>
+      api("/group_members", {
+        method: "PATCH",
+        params: { group_id: `eq.${groupId}`, user_id: `eq.${userId}` },
+        body: { role: "member" },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group_members", groupId] });
+    },
+  });
+
   const deleteInvite = useMutation({
     mutationFn: (inviteId: string) =>
       api("/group_invites", {
@@ -94,6 +118,24 @@ export function MemberList({ groupId }: { groupId: string }) {
               <span>{m.users.display_name}</span>
               <span className={`badge badge-${m.role}`}>{m.role}</span>
             </div>
+            {isAdmin && m.role === "member" && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => promoteToAdmin.mutate(m.user_id)}
+                disabled={promoteToAdmin.isPending}
+              >
+                Hacer Admin
+              </button>
+            )}
+            {isAdmin && m.role === "admin" && m.user_id !== currentUserId && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => demoteToMember.mutate(m.user_id)}
+                disabled={demoteToMember.isPending}
+              >
+                Quitar Admin
+              </button>
+            )}
           </li>
         ))}
       </ul>

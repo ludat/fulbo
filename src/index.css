@@ -250,6 +250,11 @@ body {
   color: #1565c0;
 }
 
+.badge-danger {
+  background: #ffebee;
+  color: var(--color-danger);
+}
+
 /* Match detail */
 .match-info {
   margin-bottom: 1.5rem;
@@ -361,4 +366,34 @@ section h2 {
 .error {
   color: var(--color-danger);
   font-size: 0.875rem;
+}
+
+/* Dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.dialog p {
+  margin-bottom: 1.25rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
