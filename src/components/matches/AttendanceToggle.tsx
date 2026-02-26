@@ -47,6 +47,19 @@ export function AttendanceToggle({ matchId }: { matchId: string }) {
     },
   });
 
+  const remove = useMutation({
+    mutationFn: () =>
+      api("/attendance", {
+        method: "DELETE",
+        params: { match_id: `eq.${matchId}`, user_id: `eq.${userId}` },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", matchId],
+      });
+    },
+  });
+
   return (
     <div className="attendance-toggle">
       {statuses.map((s) => (
@@ -54,11 +67,20 @@ export function AttendanceToggle({ matchId }: { matchId: string }) {
           key={s}
           className={`btn ${currentStatus === s ? "btn-active" : "btn-secondary"}`}
           onClick={() => upsert.mutate(s)}
-          disabled={upsert.isPending}
+          disabled={upsert.isPending || remove.isPending}
         >
           {statusLabels[s]}
         </button>
       ))}
+      {currentStatus && (
+        <button
+          className="btn btn-danger"
+          onClick={() => remove.mutate()}
+          disabled={upsert.isPending || remove.isPending}
+        >
+          Borrar respuesta
+        </button>
+      )}
     </div>
   );
 }
