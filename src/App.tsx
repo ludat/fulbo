@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { GroupList } from "./components/groups/GroupList";
@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 function AppRoutes() {
   const auth = useAuth();
 
-  useEffect(() => {
+  useMemo(() => {
     setTokenGetter(() => auth.user?.access_token);
   }, [auth.user?.access_token]);
 

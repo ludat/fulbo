@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { api } from "../../api/postgrest";
 
@@ -85,12 +85,13 @@ export function GroupList() {
                   >
                     <div>
                       <h3>
-                        {format(new Date(m.starts_at), "EEE d MMM, HH:mm", {
+                        {format(new Date(m.starts_at), "EEEE d MMM, HH:mm", {
                           locale: es,
                         })}
                       </h3>
                       <p className="match-meta">
-                        {m.groups.name}
+                        {formatDistanceToNow(new Date(m.starts_at), { addSuffix: true, locale: es })}
+                        {" · "}{m.groups.name}
                         {m.location ? ` · ${m.location}` : ""}
                       </p>
                     </div>

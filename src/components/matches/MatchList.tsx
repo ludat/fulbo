@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { api } from "../../api/postgrest";
 
@@ -56,8 +56,12 @@ export function MatchList({ groupId, filter = "upcoming" }: MatchListProps) {
           key={m.id}
           className="card"
         >
-          <h3>{format(new Date(m.starts_at), "EEE d MMM, HH:mm", { locale: es })}</h3>
-          {m.location && <p className="match-meta">{m.location}</p>}
+          <h3>{format(new Date(m.starts_at), "EEEE d MMM, HH:mm", { locale: es })}</h3>
+          <p className="match-meta">
+            {filter === "upcoming" && formatDistanceToNow(new Date(m.starts_at), { addSuffix: true, locale: es })}
+            {filter === "upcoming" && m.location && " · "}
+            {m.location}
+          </p>
         </Link>
       ))}
     </div>

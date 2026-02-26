@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
+import { ConfirmButton } from "../ui/ConfirmButton";
 
 type Member = {
   group_id: string;
@@ -86,6 +87,17 @@ export function MemberList({ groupId }: { groupId: string }) {
     },
   });
 
+  const removeMember = useMutation({
+    mutationFn: (userId: string) =>
+      api("/group_members", {
+        method: "DELETE",
+        params: { group_id: `eq.${groupId}`, user_id: `eq.${userId}` },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group_members", groupId] });
+    },
+  });
+
   const deleteInvite = useMutation({
     mutationFn: (inviteId: string) =>
       api("/group_invites", {
@@ -135,6 +147,14 @@ export function MemberList({ groupId }: { groupId: string }) {
               >
                 Quitar Admin
               </button>
+            )}
+            {isAdmin && m.user_id !== currentUserId && (
+              <ConfirmButton
+                label="Expulsar"
+                confirmLabel="Sí, expulsar"
+                onConfirm={() => removeMember.mutate(m.user_id)}
+                disabled={removeMember.isPending}
+              />
             )}
           </li>
         ))}

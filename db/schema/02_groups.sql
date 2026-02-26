@@ -67,19 +67,33 @@ CREATE TRIGGER trg_group_creator_admin
     EXECUTE FUNCTION add_creator_as_admin();
 
 -- Join a group using an invite token
-CREATE FUNCTION join_group_by_invite(invite_token TEXT) RETURNS SETOF group_members AS $$
+CREATE FUNCTION join_group_by_invite(invite_token TEXT)
+RETURNS TABLE(group_id UUID, user_id UUID, role TEXT, joined_at TIMESTAMPTZ, already_member BOOLEAN) AS $$
+DECLARE
+    v_group_id UUID;
+    v_already_member BOOLEAN;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM group_invites WHERE token = invite_token) THEN
+    SELECT gi.group_id INTO v_group_id FROM group_invites gi WHERE gi.token = invite_token;
+
+    IF v_group_id IS NULL THEN
         RAISE EXCEPTION 'Invalid invite token'
             USING ERRCODE = 'P0002';
     END IF;
 
+    SELECT EXISTS (
+        SELECT 1 FROM group_members gm
+        WHERE gm.group_id = v_group_id AND gm.user_id = current_user_id()
+    ) INTO v_already_member;
+
+    IF NOT v_already_member THEN
+        INSERT INTO group_members (group_id, user_id, role)
+        VALUES (v_group_id, current_user_id(), 'member');
+    END IF;
+
     RETURN QUERY
-    INSERT INTO group_members (group_id, user_id, role)
-    SELECT gi.group_id, current_user_id(), 'member'
-    FROM group_invites gi WHERE gi.token = invite_token
-    ON CONFLICT (group_id, user_id) DO NOTHING
-    RETURNING *;
+    SELECT gm.group_id, gm.user_id, gm.role, gm.joined_at, v_already_member
+    FROM group_members gm
+    WHERE gm.group_id = v_group_id AND gm.user_id = current_user_id();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -99,7 +113,7 @@ CREATE POLICY groups_delete ON groups FOR DELETE TO app_user
     USING (is_group_admin(id));
 
 -- RLS: group_members
-GRANT SELECT ON group_members TO app_user;
+GRANT SELECT, DELETE ON group_members TO app_user;
 GRANT UPDATE (role) ON group_members TO app_user;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
@@ -109,6 +123,9 @@ CREATE POLICY groups_members_select ON group_members FOR SELECT TO app_user
 CREATE POLICY group_members_update ON group_members FOR UPDATE TO app_user
     USING (is_group_admin(group_id))
     WITH CHECK (is_group_admin(group_id));
+
+CREATE POLICY group_members_delete ON group_members FOR DELETE TO app_user
+    USING (is_group_admin(group_id) AND user_id <> current_user_id());
 
 -- No direct insert policy: members join via invite links (join_group_by_invite)
 -- Group creator is added automatically by trigger (SECURITY DEFINER)

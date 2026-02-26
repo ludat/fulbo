@@ -7,7 +7,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   });
 
   if (isLoading) {
-    return <div>Iniciando sesion...</div>;
+    return <div className="loading">Iniciando sesion...</div>;
   }
 
   if (!isAuthenticated) {
