@@ -298,7 +298,7 @@ ADD CONSTRAINT match_teams_match_id_fkey FOREIGN KEY (match_id) REFERENCES match
 ALTER TABLE attendance DROP CONSTRAINT attendance_user_id_fkey;
 
 ALTER TABLE attendance
-ADD COLUMN player_id uuid NOT NULL CONSTRAINT attendance_player_id_fkey REFERENCES players (id) ON DELETE CASCADE;
+ADD COLUMN player_id uuid CONSTRAINT attendance_player_id_fkey REFERENCES players (id) ON DELETE CASCADE;
 
 -- Migrate attendance from user_id to player_id
 UPDATE attendance a
@@ -307,6 +307,8 @@ FROM matches m, players p
 WHERE m.id = a.match_id
   AND p.group_id = m.group_id
   AND p.user_id = a.user_id;
+
+ALTER TABLE attendance ALTER COLUMN player_id SET NOT NULL;
 
 ALTER POLICY attendance_delete ON attendance USING ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
 
