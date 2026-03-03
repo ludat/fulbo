@@ -3,14 +3,14 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { api } from "../../api/postgrest";
+import { api, rpc } from "../../api/postgrest";
 import { AttendanceToggle } from "./AttendanceToggle";
 import { AttendanceList } from "./AttendanceList";
+import { TeamDisplay } from "./TeamDisplay";
 import { ConfirmButton } from "../ui/ConfirmButton";
 
-type Member = {
+type Admin = {
   user_id: string;
-  role: string;
 };
 
 type Match = {
@@ -20,6 +20,10 @@ type Match = {
   starts_at: string;
   notes: string | null;
   created_by: string;
+};
+
+type Player = {
+  id: string;
 };
 
 export function MatchDetail() {
@@ -41,18 +45,31 @@ export function MatchDetail() {
 
   const match = matches?.[0];
 
-  const { data: members } = useQuery({
+  const { data: admins } = useQuery({
     queryKey: ["group_members", groupId],
     queryFn: () =>
-      api<Member[]>("/group_members", {
-        params: { group_id: `eq.${groupId}`, select: "user_id,role" },
+      api<Admin[]>("/group_members", {
+        params: { group_id: `eq.${groupId}`, select: "user_id" },
       }),
     enabled: !!match,
   });
 
-  const isAdmin = members?.some(
-    (m) => m.user_id === currentUserId && m.role === "admin"
-  );
+  const { data: currentPlayerArr } = useQuery({
+    queryKey: ["players", groupId, "current"],
+    queryFn: () =>
+      api<Player[]>("/players", {
+        params: {
+          group_id: `eq.${groupId}`,
+          user_id: `eq.${currentUserId}`,
+          select: "id",
+        },
+      }),
+    enabled: !!groupId && !!currentUserId,
+  });
+
+  const currentPlayerId = currentPlayerArr?.[0]?.id ?? null;
+
+  const isAdmin = admins?.some((a) => a.user_id === currentUserId);
 
   const repeatMatch = useMutation({
     mutationFn: () => {
@@ -71,6 +88,13 @@ export function MatchDetail() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["matches", groupId] });
       navigate(`/groups/${groupId}/matches/${data[0].id}`);
+    },
+  });
+
+  const generateTeams = useMutation({
+    mutationFn: () => rpc("generate_teams", { p_match_id: matchId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["match_teams", matchId] });
     },
   });
 
@@ -110,6 +134,13 @@ export function MatchDetail() {
             >
               Repetir Partido
             </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => generateTeams.mutate()}
+              disabled={generateTeams.isPending}
+            >
+              Generar Equipos
+            </button>
             <Link
               to={`/groups/${groupId}/matches/${matchId}/edit`}
               className="btn btn-secondary"
@@ -135,12 +166,17 @@ export function MatchDetail() {
 
       <section>
         <h2>Tu Asistencia</h2>
-        <AttendanceToggle matchId={matchId!} />
+        <AttendanceToggle matchId={matchId!} playerId={currentPlayerId} />
       </section>
 
       <section>
         <h2>Quienes van</h2>
         <AttendanceList matchId={matchId!} groupId={groupId!} />
+      </section>
+
+      <section>
+        <h2>Equipos</h2>
+        <TeamDisplay matchId={matchId!} groupId={groupId!} isAdmin={isAdmin} />
       </section>
     </div>
   );

@@ -1,1 +1,10 @@
-\i schema/
+\i schema/postgrest.sql
+\i schema/00_auth.sql
+\i schema/01_users.sql
+\i schema/02_groups.sql
+\i schema/players.sql
+\i schema/03_matches.sql
+\i schema/04_attendance.sql
+\i schema/player_attributes.sql
+\i schema/player_ratings.sql
+\i schema/match_teams.sql

@@ -3,15 +3,20 @@ import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
 
 type AttendanceRow = {
-  user_id: string;
+  player_id: string;
   status: string;
-  users: { display_name: string; avatar_url: string | null };
+  players: { id: string; name: string; user_id: string | null; users: { avatar_url: string | null } | null };
 };
 
-type Member = {
+type Player = {
+  id: string;
+  name: string;
+  user_id: string | null;
+  users: { avatar_url: string | null } | null;
+};
+
+type Admin = {
   user_id: string;
-  role: string;
-  users: { display_name: string; avatar_url: string | null };
 };
 
 const statusLabels: Record<string, string> = {
@@ -39,32 +44,41 @@ export function AttendanceList({
       api<AttendanceRow[]>("/attendance", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "user_id,status,users(display_name,avatar_url)",
+          select: "player_id,status,players(id,name,user_id,users(avatar_url))",
           order: "status.asc",
         },
       }),
   });
 
-  const { data: members } = useQuery({
+  const { data: admins } = useQuery({
     queryKey: ["group_members", groupId],
     queryFn: () =>
-      api<Member[]>("/group_members", {
+      api<Admin[]>("/group_members", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "user_id,role,users(display_name,avatar_url)",
+          select: "user_id",
         },
       }),
   });
 
-  const isAdmin = members?.some(
-    (m) => m.user_id === currentUserId && m.role === "admin",
-  );
+  const { data: players } = useQuery({
+    queryKey: ["players", groupId],
+    queryFn: () =>
+      api<Player[]>("/players", {
+        params: {
+          group_id: `eq.${groupId}`,
+          select: "id,name,user_id,users(avatar_url)",
+        },
+      }),
+  });
+
+  const isAdmin = admins?.some((a) => a.user_id === currentUserId);
 
   const upsert = useMutation({
-    mutationFn: ({ userId, status }: { userId: string; status: string }) =>
+    mutationFn: ({ playerId, status }: { playerId: string; status: string }) =>
       api("/attendance", {
         method: "POST",
-        body: { match_id: matchId, user_id: userId, status },
+        body: { match_id: matchId, player_id: playerId, status },
         headers: {
           Prefer: "resolution=merge-duplicates,return=representation",
         },
@@ -75,10 +89,10 @@ export function AttendanceList({
   });
 
   const remove = useMutation({
-    mutationFn: (userId: string) =>
+    mutationFn: (playerId: string) =>
       api("/attendance", {
         method: "DELETE",
-        params: { match_id: `eq.${matchId}`, user_id: `eq.${userId}` },
+        params: { match_id: `eq.${matchId}`, player_id: `eq.${playerId}` },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance", matchId] });
@@ -87,26 +101,37 @@ export function AttendanceList({
 
   if (isLoading) return <div className="loading">Cargando...</div>;
 
-  // Admin view: all group members with inline toggle buttons
-  if (isAdmin && members) {
-    const attendanceByUser = new Map(rows?.map((r) => [r.user_id, r.status]));
+  const goingCount = rows?.filter((r) => r.status === "going").length ?? 0;
+  const maybeCount = rows?.filter((r) => r.status === "maybe").length ?? 0;
+
+  const summary = (
+    <div className="attendance-summary">
+      <span className="attendance-summary-chip going">{goingCount} {goingCount === 1 ? "va" : "van"}</span>
+      {maybeCount > 0 && <span className="attendance-summary-chip maybe">{maybeCount} capaz</span>}
+    </div>
+  );
+
+  // Admin view: all players with inline toggle buttons
+  if (isAdmin && players) {
+    const attendanceByPlayer = new Map(rows?.map((r) => [r.player_id, r.status]));
 
     return (
       <div className="attendance-list">
+        {summary}
         <ul>
-          {members.map((m: Member) => {
-            const currentStatus = attendanceByUser.get(m.user_id);
+          {players.map((p: Player) => {
+            const currentStatus = attendanceByPlayer.get(p.id);
             return (
-              <li key={m.user_id} className="member-item attendance-admin-row">
+              <li key={p.id} className="member-item attendance-admin-row">
                 <div className="member-info">
-                  {m.users.avatar_url && (
+                  {p.users?.avatar_url && (
                     <img
-                      src={m.users.avatar_url}
+                      src={p.users.avatar_url}
                       alt=""
                       className="member-avatar"
                     />
                   )}
-                  <span>{m.users.display_name}</span>
+                  <span>{p.name}</span>
                 </div>
                 <div className="attendance-toggle">
                   {statuses.map((s) => (
@@ -114,7 +139,7 @@ export function AttendanceList({
                       key={s}
                       className={`btn btn-sm ${currentStatus === s ? "btn-active" : "btn-secondary"}`}
                       onClick={() =>
-                        upsert.mutate({ userId: m.user_id, status: s })
+                        upsert.mutate({ playerId: p.id, status: s })
                       }
                       disabled={upsert.isPending || remove.isPending}
                     >
@@ -124,7 +149,7 @@ export function AttendanceList({
                   {currentStatus && (
                     <button
                       className="btn btn-sm btn-danger"
-                      onClick={() => remove.mutate(m.user_id)}
+                      onClick={() => remove.mutate(p.id)}
                       disabled={upsert.isPending || remove.isPending}
                     >
                       Borrar
@@ -150,6 +175,7 @@ export function AttendanceList({
 
   return (
     <div className="attendance-list">
+      {summary}
       {(["going", "maybe", "not_going"] as const).map((status) => {
         const group = grouped[status];
         if (!group?.length) return null;
@@ -160,15 +186,15 @@ export function AttendanceList({
             </h3>
             <ul>
               {group.map((r: AttendanceRow) => (
-                <li key={r.user_id} className="member-item">
-                  {r.users.avatar_url && (
+                <li key={r.player_id} className="member-item">
+                  {r.players.users?.avatar_url && (
                     <img
-                      src={r.users.avatar_url}
+                      src={r.players.users.avatar_url}
                       alt=""
                       className="member-avatar"
                     />
                   )}
-                  <span>{r.users.display_name}</span>
+                  <span>{r.players.name}</span>
                 </li>
               ))}
             </ul>

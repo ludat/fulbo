@@ -55,8 +55,8 @@ export function GroupList() {
           and: `(starts_at.gte.${now},starts_at.lte.${oneWeek})`,
           order: "starts_at.asc",
           select:
-            "id,group_id,starts_at,location,groups(name),attendance(status)",
-          "attendance.user_id": `eq.${userId}`,
+            "id,group_id,starts_at,location,groups(name),attendance(status,players!inner(user_id))",
+          "attendance.players.user_id": `eq.${userId}`,
         },
       }),
     enabled: !!userId,

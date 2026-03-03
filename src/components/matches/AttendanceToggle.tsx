@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
 
 type Attendance = {
   match_id: string;
-  user_id: string;
+  player_id: string;
   status: string;
 };
 
@@ -15,18 +14,16 @@ const statusLabels: Record<string, string> = {
   not_going: "No voy",
 };
 
-export function AttendanceToggle({ matchId }: { matchId: string }) {
-  const auth = useAuth();
-  const userId = auth.user?.profile.sub;
+export function AttendanceToggle({ matchId, playerId }: { matchId: string; playerId: string | null }) {
   const queryClient = useQueryClient();
 
   const { data: attendance } = useQuery({
-    queryKey: ["attendance", matchId, userId],
+    queryKey: ["attendance", matchId, playerId],
     queryFn: () =>
       api<Attendance[]>("/attendance", {
-        params: { match_id: `eq.${matchId}`, user_id: `eq.${userId}` },
+        params: { match_id: `eq.${matchId}`, player_id: `eq.${playerId}` },
       }),
-    enabled: !!userId,
+    enabled: !!playerId,
   });
 
   const currentStatus = attendance?.[0]?.status;
@@ -35,7 +32,7 @@ export function AttendanceToggle({ matchId }: { matchId: string }) {
     mutationFn: (status: string) =>
       api("/attendance", {
         method: "POST",
-        body: { match_id: matchId, user_id: userId, status },
+        body: { match_id: matchId, player_id: playerId, status },
         headers: {
           Prefer: "resolution=merge-duplicates,return=representation",
         },
@@ -51,7 +48,7 @@ export function AttendanceToggle({ matchId }: { matchId: string }) {
     mutationFn: () =>
       api("/attendance", {
         method: "DELETE",
-        params: { match_id: `eq.${matchId}`, user_id: `eq.${userId}` },
+        params: { match_id: `eq.${matchId}`, player_id: `eq.${playerId}` },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -59,6 +56,8 @@ export function AttendanceToggle({ matchId }: { matchId: string }) {
       });
     },
   });
+
+  if (!playerId) return null;
 
   return (
     <div className="attendance-toggle">

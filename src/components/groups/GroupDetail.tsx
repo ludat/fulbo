@@ -15,10 +15,8 @@ type Group = {
   created_at: string;
 };
 
-type Member = {
+type Admin = {
   user_id: string;
-  role: string;
-  users: { display_name: string; email: string; avatar_url: string | null };
 };
 
 export function GroupDetail() {
@@ -31,23 +29,23 @@ export function GroupDetail() {
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups", groupId],
     queryFn: () =>
-      api<Group[]>("/groups", { params: { id: `eq.${groupId}`, deleted_at: "is.null" } }),
+      api<Group[]>("/groups", {
+        params: { id: `eq.${groupId}`, deleted_at: "is.null" },
+      }),
   });
 
-  const { data: members } = useQuery({
+  const { data: admins } = useQuery({
     queryKey: ["group_members", groupId],
     queryFn: () =>
-      api<Member[]>("/group_members", {
+      api<Admin[]>("/group_members", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "group_id,user_id,role,users(display_name,email,avatar_url)",
+          select: "user_id",
         },
       }),
   });
 
-  const isAdmin = members?.some(
-    (m) => m.user_id === currentUserId && m.role === "admin"
-  );
+  const isAdmin = admins?.some((a) => a.user_id === currentUserId);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -74,9 +72,7 @@ export function GroupDetail() {
       <div className="page-header">
         <div>
           <h1>{group.name}</h1>
-          {group.description && (
-            <p className="subtitle">{group.description}</p>
-          )}
+          {group.description && <p className="subtitle">{group.description}</p>}
         </div>
         {isAdmin && (
           <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -90,16 +86,28 @@ export function GroupDetail() {
               <ConfirmDialog
                 message={`¿Eliminar el grupo "${group.name}"? Esta acción no se puede deshacer.`}
                 confirmLabel="Sí, eliminar"
-                onConfirm={() => { setShowDeleteDialog(false); deleteGroup.mutate(); }}
+                onConfirm={() => {
+                  setShowDeleteDialog(false);
+                  deleteGroup.mutate();
+                }}
                 onCancel={() => setShowDeleteDialog(false)}
                 disabled={deleteGroup.isPending}
               />
             )}
+            <Link to={`/groups/${groupId}/edit`} className="btn btn-secondary">
+              Editar
+            </Link>
             <Link
-              to={`/groups/${groupId}/edit`}
+              to={`/groups/${groupId}/attributes`}
               className="btn btn-secondary"
             >
-              Editar
+              Atributos
+            </Link>
+            <Link
+              to={`/groups/${groupId}/ratings`}
+              className="btn btn-secondary"
+            >
+              Puntuaciones
             </Link>
             <Link
               to={`/groups/${groupId}/matches/new`}
@@ -124,7 +132,6 @@ export function GroupDetail() {
       </section>
 
       <section>
-        <h2>Miembros</h2>
         <MemberList groupId={groupId!} />
       </section>
     </div>

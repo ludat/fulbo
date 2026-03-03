@@ -10,7 +10,7 @@ CREATE TABLE groups (
 CREATE TABLE group_members (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin')),
     joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (group_id, user_id)
 );
@@ -21,6 +21,16 @@ CREATE TABLE group_invites (
     token TEXT NOT NULL UNIQUE DEFAULT replace(gen_random_uuid()::text, '-', ''),
     created_by UUID NOT NULL REFERENCES users(id) DEFAULT current_user_id(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE players (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (group_id, user_id),
+    UNIQUE (group_id, name)
 );
 
 -- Helper: check if current user is admin of a group
@@ -34,29 +44,37 @@ CREATE FUNCTION is_group_admin(gid UUID) RETURNS BOOLEAN AS $$
     );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- Helper: check if current user is member of a group
--- SECURITY DEFINER to bypass RLS on group_members (avoids infinite recursion)
+-- Helper: check if current user is member of a group (via players table)
+-- SECURITY DEFINER to bypass RLS on players (avoids infinite recursion)
 CREATE FUNCTION is_group_member(gid UUID) RETURNS BOOLEAN AS $$
     SELECT EXISTS (
-        SELECT 1 FROM group_members
+        SELECT 1 FROM players
         WHERE group_id = gid
           AND user_id = current_user_id()
     );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- Helper: check if a group has any members yet
--- SECURITY DEFINER to bypass RLS on group_members
+-- Helper: check if a group has any members yet (via players table)
+-- SECURITY DEFINER to bypass RLS on players
 CREATE FUNCTION group_has_members(gid UUID) RETURNS BOOLEAN AS $$
     SELECT EXISTS (
-        SELECT 1 FROM group_members WHERE group_id = gid
+        SELECT 1 FROM players WHERE group_id = gid
     );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Trigger: auto-add group creator as admin on group creation
 CREATE FUNCTION add_creator_as_admin() RETURNS TRIGGER AS $$
+DECLARE
+    v_display_name TEXT;
 BEGIN
-    INSERT INTO group_members (group_id, user_id, role)
-    VALUES (NEW.id, NEW.created_by, 'admin');
+    INSERT INTO group_members (group_id, user_id)
+    VALUES (NEW.id, NEW.created_by);
+
+    SELECT display_name INTO v_display_name FROM users WHERE id = NEW.created_by;
+
+    INSERT INTO players (group_id, user_id, name)
+    VALUES (NEW.id, NEW.created_by, COALESCE(v_display_name, 'Player'));
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -67,8 +85,10 @@ CREATE TRIGGER trg_group_creator_admin
     EXECUTE FUNCTION add_creator_as_admin();
 
 -- Join a group using an invite token
+-- Validates the token and returns group info + whether user is already a member.
+-- Does NOT auto-create a player — the frontend handles claim/create flow.
 CREATE FUNCTION join_group_by_invite(invite_token TEXT)
-RETURNS TABLE(group_id UUID, user_id UUID, role TEXT, joined_at TIMESTAMPTZ, already_member BOOLEAN) AS $$
+RETURNS TABLE(group_id UUID, user_id UUID, already_member BOOLEAN) AS $$
 DECLARE
     v_group_id UUID;
     v_already_member BOOLEAN;
@@ -80,31 +100,92 @@ BEGIN
             USING ERRCODE = 'P0002';
     END IF;
 
+    -- Check membership via players table
     SELECT EXISTS (
-        SELECT 1 FROM group_members gm
-        WHERE gm.group_id = v_group_id AND gm.user_id = current_user_id()
+        SELECT 1 FROM players p
+        WHERE p.group_id = v_group_id AND p.user_id = current_user_id()
     ) INTO v_already_member;
 
-    IF NOT v_already_member THEN
-        INSERT INTO group_members (group_id, user_id, role)
-        VALUES (v_group_id, current_user_id(), 'member');
-    END IF;
-
     RETURN QUERY
-    SELECT gm.group_id, gm.user_id, gm.role, gm.joined_at, v_already_member
-    FROM group_members gm
-    WHERE gm.group_id = v_group_id AND gm.user_id = current_user_id();
+    SELECT v_group_id, current_user_id(), v_already_member;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION join_group_by_invite(TEXT) TO app_user;
+
+-- List unlinked players for a group via invite token (SECURITY DEFINER bypasses RLS)
+CREATE FUNCTION unlinked_players_for_invite(invite_token TEXT)
+RETURNS TABLE(id UUID, name TEXT) AS $$
+DECLARE
+    v_group_id UUID;
+BEGIN
+    SELECT gi.group_id INTO v_group_id FROM group_invites gi WHERE gi.token = invite_token;
+
+    IF v_group_id IS NULL THEN
+        RAISE EXCEPTION 'Invalid invite token' USING ERRCODE = 'P0002';
+    END IF;
+
+    RETURN QUERY
+    SELECT p.id, p.name FROM players p
+    WHERE p.group_id = v_group_id AND p.user_id IS NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION unlinked_players_for_invite(TEXT) TO app_user;
+
+-- Complete joining a group: either claim an existing unlinked player or create a new one
+-- Pass p_player_id to claim, or p_name to create (exactly one must be provided)
+CREATE FUNCTION complete_join_by_invite(invite_token TEXT, p_player_id UUID DEFAULT NULL, p_name TEXT DEFAULT NULL)
+RETURNS players AS $$
+DECLARE
+    v_group_id UUID;
+    v_player players;
+BEGIN
+    SELECT gi.group_id INTO v_group_id FROM group_invites gi WHERE gi.token = invite_token;
+
+    IF v_group_id IS NULL THEN
+        RAISE EXCEPTION 'Invalid invite token' USING ERRCODE = 'P0002';
+    END IF;
+
+    -- User must not already have a player in this group
+    IF EXISTS (SELECT 1 FROM players WHERE group_id = v_group_id AND user_id = current_user_id()) THEN
+        RAISE EXCEPTION 'You already have a player in this group' USING ERRCODE = 'P0005';
+    END IF;
+
+    IF p_player_id IS NOT NULL THEN
+        -- Claim an existing unlinked player
+        SELECT * INTO v_player FROM players WHERE id = p_player_id AND group_id = v_group_id;
+
+        IF v_player IS NULL THEN
+            RAISE EXCEPTION 'Player not found in this group' USING ERRCODE = 'P0002';
+        END IF;
+
+        IF v_player.user_id IS NOT NULL THEN
+            RAISE EXCEPTION 'Player is already linked to a user' USING ERRCODE = 'P0004';
+        END IF;
+
+        UPDATE players SET user_id = current_user_id() WHERE id = p_player_id RETURNING * INTO v_player;
+    ELSIF p_name IS NOT NULL THEN
+        -- Create a new player
+        INSERT INTO players (group_id, user_id, name)
+        VALUES (v_group_id, current_user_id(), p_name)
+        RETURNING * INTO v_player;
+    ELSE
+        RAISE EXCEPTION 'Must provide either p_player_id or p_name' USING ERRCODE = 'P0001';
+    END IF;
+
+    RETURN v_player;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION complete_join_by_invite(TEXT, UUID, TEXT) TO app_user;
 
 -- RLS: groups
 GRANT ALL PRIVILEGES ON TABLE groups TO app_user;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY groups_select ON groups FOR SELECT TO app_user
-    USING (is_group_member(id) OR (created_by = current_user_id() AND NOT group_has_members(id)));
+    USING (is_group_member(id) OR is_group_admin(id) OR (created_by = current_user_id() AND NOT group_has_members(id)));
 CREATE POLICY groups_insert ON groups FOR INSERT TO app_user
     WITH CHECK (true);
 CREATE POLICY groups_update ON groups FOR UPDATE TO app_user
@@ -112,23 +193,20 @@ CREATE POLICY groups_update ON groups FOR UPDATE TO app_user
 CREATE POLICY groups_delete ON groups FOR DELETE TO app_user
     USING (is_group_admin(id));
 
--- RLS: group_members
-GRANT SELECT, DELETE ON group_members TO app_user;
-GRANT UPDATE (role) ON group_members TO app_user;
+-- RLS: group_members (admin tracking only)
+GRANT SELECT, INSERT, DELETE ON group_members TO app_user;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY groups_members_select ON group_members FOR SELECT TO app_user
-    USING (is_group_member(group_id));
+    USING (is_group_member(group_id) OR is_group_admin(group_id));
 
-CREATE POLICY group_members_update ON group_members FOR UPDATE TO app_user
-    USING (is_group_admin(group_id))
+CREATE POLICY group_members_insert ON group_members FOR INSERT TO app_user
     WITH CHECK (is_group_admin(group_id));
 
 CREATE POLICY group_members_delete ON group_members FOR DELETE TO app_user
     USING (is_group_admin(group_id) AND user_id <> current_user_id());
 
--- No direct insert policy: members join via invite links (join_group_by_invite)
--- Group creator is added automatically by trigger (SECURITY DEFINER)
+-- No UPDATE policy needed: presence = admin, no role to update
 
 -- RLS: group_invites (admin-only)
 GRANT ALL PRIVILEGES ON TABLE group_invites TO app_user;
@@ -145,13 +223,13 @@ CREATE POLICY group_invites_delete ON group_invites FOR DELETE TO app_user
 GRANT SELECT, UPDATE ON users TO app_user;
 
 -- Helper: check if a user shares any group with the current user
--- SECURITY DEFINER to bypass RLS on group_members
+-- SECURITY DEFINER to bypass RLS on players
 CREATE FUNCTION shares_group_with_current_user(uid UUID) RETURNS BOOLEAN AS $$
     SELECT EXISTS (
-        SELECT 1 FROM group_members gm1
-        JOIN group_members gm2 ON gm1.group_id = gm2.group_id
-        WHERE gm1.user_id = current_user_id()
-          AND gm2.user_id = uid
+        SELECT 1 FROM players p1
+        JOIN players p2 ON p1.group_id = p2.group_id
+        WHERE p1.user_id = current_user_id()
+          AND p2.user_id = uid
     );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
