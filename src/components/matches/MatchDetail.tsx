@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
@@ -26,11 +27,15 @@ type Player = {
   id: string;
 };
 
+type Tab = "jugadores" | "equipos";
+
 export function MatchDetail() {
   const { groupId, matchId } = useParams<{
     groupId: string;
     matchId: string;
   }>();
+
+  const [activeTab, setActiveTab] = useState<Tab>("jugadores");
 
   const auth = useAuth();
   const currentUserId = auth.user?.profile.sub;
@@ -134,18 +139,6 @@ export function MatchDetail() {
             >
               Repetir Partido
             </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => generateTeams.mutate()}
-              disabled={generateTeams.isPending}
-            >
-              Generar Equipos
-            </button>
-            {generateTeams.isError && (
-              <span className="error">
-                {generateTeams.error?.message}
-              </span>
-            )}
             <Link
               to={`/groups/${groupId}/matches/${matchId}/edit`}
               className="btn btn-secondary"
@@ -169,20 +162,57 @@ export function MatchDetail() {
         )}
       </div>
 
-      <section>
-        <h2>Tu Asistencia</h2>
-        <AttendanceToggle matchId={matchId!} playerId={currentPlayerId} />
-      </section>
+      <div className="tabs">
+        <button
+          className={`tab${activeTab === "jugadores" ? " tab-active" : ""}`}
+          onClick={() => setActiveTab("jugadores")}
+        >
+          Jugadores
+        </button>
+        <button
+          className={`tab${activeTab === "equipos" ? " tab-active" : ""}`}
+          onClick={() => setActiveTab("equipos")}
+        >
+          Equipos
+        </button>
+      </div>
 
-      <section>
-        <h2>Quienes van</h2>
-        <AttendanceList matchId={matchId!} groupId={groupId!} />
-      </section>
+      {activeTab === "jugadores" && (
+        <>
+          <section>
+            <h2>Tu Asistencia</h2>
+            <AttendanceToggle matchId={matchId!} playerId={currentPlayerId} />
+          </section>
 
-      <section>
-        <h2>Equipos</h2>
-        <TeamDisplay matchId={matchId!} groupId={groupId!} isAdmin={isAdmin} />
-      </section>
+          <section>
+            <h2>Quienes van</h2>
+            <AttendanceList matchId={matchId!} groupId={groupId!} />
+          </section>
+        </>
+      )}
+
+      {activeTab === "equipos" && (
+        <section>
+          <h2>Equipos</h2>
+          {isAdmin && (
+            <div style={{ marginBottom: "1rem" }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => generateTeams.mutate()}
+                disabled={generateTeams.isPending}
+              >
+                Generar Equipos
+              </button>
+              {generateTeams.isError && (
+                <span className="error" style={{ marginLeft: "0.5rem" }}>
+                  {generateTeams.error?.message}
+                </span>
+              )}
+            </div>
+          )}
+          <TeamDisplay matchId={matchId!} groupId={groupId!} isAdmin={isAdmin} />
+        </section>
+      )}
     </div>
   );
 }

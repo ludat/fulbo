@@ -5,7 +5,12 @@ type TeamAssignment = {
   match_id: string;
   player_id: string;
   team: number;
-  players: { id: string; name: string; user_id: string | null; users: { avatar_url: string | null } | null };
+  players: {
+    id: string;
+    name: string;
+    user_id: string | null;
+    users: { avatar_url: string | null } | null;
+  };
 };
 
 type PlayerAttribute = {
@@ -23,7 +28,12 @@ type PlayerRating = {
 type AttendanceRow = {
   player_id: string;
   status: string;
-  players: { id: string; name: string; user_id: string | null; users: { avatar_url: string | null } | null };
+  players: {
+    id: string;
+    name: string;
+    user_id: string | null;
+    users: { avatar_url: string | null } | null;
+  };
 };
 
 export function TeamDisplay({
@@ -43,7 +53,8 @@ export function TeamDisplay({
       api<TeamAssignment[]>("/match_teams", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "match_id,player_id,team,players(id,name,user_id,users(avatar_url))",
+          select:
+            "match_id,player_id,team,players(id,name,user_id,users(avatar_url))",
         },
       }),
   });
@@ -84,7 +95,13 @@ export function TeamDisplay({
   });
 
   const swapTeam = useMutation({
-    mutationFn: ({ playerId, newTeam }: { playerId: string; newTeam: number }) =>
+    mutationFn: ({
+      playerId,
+      newTeam,
+    }: {
+      playerId: string;
+      newTeam: number;
+    }) =>
       api("/match_teams", {
         method: "PATCH",
         params: { match_id: `eq.${matchId}`, player_id: `eq.${playerId}` },
@@ -126,7 +143,9 @@ export function TeamDisplay({
   // Players going but not assigned to any team
   const assignedPlayerIds = new Set(teams?.map((t) => t.player_id) ?? []);
   const goingAttendance = attendance?.filter((a) => a.status === "going") ?? [];
-  const bench = goingAttendance.filter((a) => !assignedPlayerIds.has(a.player_id));
+  const bench = goingAttendance.filter(
+    (a) => !assignedPlayerIds.has(a.player_id),
+  );
 
   const goingPlayerIds = new Set(goingAttendance.map((a) => a.player_id));
 
@@ -141,13 +160,16 @@ export function TeamDisplay({
   function attrSum(teamPlayers: TeamAssignment[], attributeId: string): number {
     return teamPlayers.reduce(
       (sum, t) => sum + (ratingMap.get(`${t.player_id}:${attributeId}`) ?? 0),
-      0
+      0,
     );
   }
 
   function totalSum(teamPlayers: TeamAssignment[]): number {
     if (!attributes?.length) return 0;
-    return attributes.reduce((sum, attr) => sum + attrSum(teamPlayers, attr.id), 0);
+    return attributes.reduce(
+      (sum, attr) => sum + attrSum(teamPlayers, attr.id),
+      0,
+    );
   }
 
   const hasAttrs = !!attributes?.length;
@@ -160,6 +182,34 @@ export function TeamDisplay({
     <div>
       {(team1.length > 0 || team2.length > 0) && (
         <>
+          {hasAttrs && (
+            <div className="teams-diff">
+              <h4>Diferencia entre equipos</h4>
+              <div className="team-axis-sums">
+                {attributes.map((attr) => {
+                  const diff =
+                    attrSum(team1, attr.id) - attrSum(team2, attr.id);
+                  return (
+                    <span
+                      key={attr.id}
+                      className={`team-axis-chip ${diff === 0 ? "diff-even" : "diff-uneven"}`}
+                    >
+                      {attr.name}: {diff > 0 ? "+" : ""}
+                      {diff}
+                    </span>
+                  );
+                })}
+                <span
+                  className={`team-axis-chip ${t1Total === t2Total ? "diff-even" : "diff-uneven"}`}
+                >
+                  <strong>
+                    Total: {t1Total - t2Total > 0 ? "+" : ""}
+                    {t1Total - t2Total}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
           <div className="teams-container">
             <TeamColumn
               label="Equipo 1"
@@ -191,29 +241,6 @@ export function TeamDisplay({
               goingPlayerIds={goingPlayerIds}
             />
           </div>
-          {hasAttrs && (
-            <div className="teams-diff">
-              <h4>Diferencia entre equipos</h4>
-              <div className="team-axis-sums">
-                {attributes.map((attr) => {
-                  const diff = attrSum(team1, attr.id) - attrSum(team2, attr.id);
-                  return (
-                    <span
-                      key={attr.id}
-                      className={`team-axis-chip ${diff === 0 ? "diff-even" : "diff-uneven"}`}
-                    >
-                      {attr.name}: {diff > 0 ? "+" : ""}{diff}
-                    </span>
-                  );
-                })}
-                <span
-                  className={`team-axis-chip ${t1Total === t2Total ? "diff-even" : "diff-uneven"}`}
-                >
-                  <strong>Total: {t1Total - t2Total > 0 ? "+" : ""}{t1Total - t2Total}</strong>
-                </span>
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -225,14 +252,23 @@ export function TeamDisplay({
               <li key={a.player_id} className="member-item">
                 <div className="member-info">
                   {a.players.users?.avatar_url && (
-                    <img src={a.players.users.avatar_url} alt="" className="member-avatar" />
+                    <img
+                      src={a.players.users.avatar_url}
+                      alt=""
+                      className="member-avatar"
+                    />
                   )}
                   <span>{a.players.name}</span>
                   {attributes && attributes.length > 0 && (
                     <span className="player-axis-ratings">
                       {attributes.map((attr) => (
-                        <span key={attr.id} className="player-rating-badge" title={attr.name}>
-                          {attr.abbreviation ?? attr.name}: {ratingMap.get(`${a.player_id}:${attr.id}`) ?? "-"}
+                        <span
+                          key={attr.id}
+                          className="player-rating-badge"
+                          title={attr.name}
+                        >
+                          {attr.abbreviation ?? attr.name}:{" "}
+                          {ratingMap.get(`${a.player_id}:${attr.id}`) ?? "-"}
                         </span>
                       ))}
                     </span>
@@ -242,14 +278,18 @@ export function TeamDisplay({
                   <div style={{ display: "flex", gap: "0.25rem" }}>
                     <button
                       className="btn btn-secondary btn-sm"
-                      onClick={() => addToTeam.mutate({ playerId: a.player_id, team: 1 })}
+                      onClick={() =>
+                        addToTeam.mutate({ playerId: a.player_id, team: 1 })
+                      }
                       disabled={addToTeam.isPending}
                     >
                       → Eq 1
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
-                      onClick={() => addToTeam.mutate({ playerId: a.player_id, team: 2 })}
+                      onClick={() =>
+                        addToTeam.mutate({ playerId: a.player_id, team: 2 })
+                      }
                       disabled={addToTeam.isPending}
                     >
                       → Eq 2
@@ -289,7 +329,10 @@ function TeamColumn({
   isAdmin?: boolean;
   swapDirection: number;
   swapLabel: string;
-  swapTeam: { mutate: (v: { playerId: string; newTeam: number }) => void; isPending: boolean };
+  swapTeam: {
+    mutate: (v: { playerId: string; newTeam: number }) => void;
+    isPending: boolean;
+  };
   removeFromTeam: { mutate: (playerId: string) => void; isPending: boolean };
   swapBefore?: boolean;
   goingPlayerIds: Set<string>;
@@ -302,7 +345,9 @@ function TeamColumn({
         {swapBefore && (
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => swapTeam.mutate({ playerId, newTeam: swapDirection })}
+            onClick={() =>
+              swapTeam.mutate({ playerId, newTeam: swapDirection })
+            }
             disabled={swapTeam.isPending}
           >
             {swapLabel}
@@ -319,7 +364,9 @@ function TeamColumn({
         {!swapBefore && (
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => swapTeam.mutate({ playerId, newTeam: swapDirection })}
+            onClick={() =>
+              swapTeam.mutate({ playerId, newTeam: swapDirection })
+            }
             disabled={swapTeam.isPending}
           >
             {swapLabel}
@@ -347,28 +394,36 @@ function TeamColumn({
         {players.map((t) => {
           const isNotGoing = !goingPlayerIds.has(t.player_id);
           return (
-          <li key={t.player_id} className={`member-item${isNotGoing ? " player-not-going" : ""}`}>
-            <div className="member-info">
-              {t.players.users?.avatar_url && (
-                <img
-                  src={t.players.users.avatar_url}
-                  alt=""
-                  className="member-avatar"
-                />
-              )}
-              <span>{t.players.name}</span>
-              {hasAttrs && (
-                <span className="player-axis-ratings">
-                  {attributes.map((attr) => (
-                    <span key={attr.id} className="player-rating-badge" title={attr.name}>
-                      {attr.abbreviation ?? attr.name}: {ratingMap.get(`${t.player_id}:${attr.id}`) ?? "-"}
-                    </span>
-                  ))}
-                </span>
-              )}
-            </div>
-            {actionButtons(t.player_id)}
-          </li>
+            <li
+              key={t.player_id}
+              className={`member-item${isNotGoing ? " player-not-going" : ""}`}
+            >
+              <div className="member-info">
+                {t.players.users?.avatar_url && (
+                  <img
+                    src={t.players.users.avatar_url}
+                    alt=""
+                    className="member-avatar"
+                  />
+                )}
+                <span>{t.players.name}</span>
+                {hasAttrs && (
+                  <span className="player-axis-ratings">
+                    {attributes.map((attr) => (
+                      <span
+                        key={attr.id}
+                        className="player-rating-badge"
+                        title={attr.name}
+                      >
+                        {attr.abbreviation ?? attr.name}:{" "}
+                        {ratingMap.get(`${t.player_id}:${attr.id}`) ?? "-"}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </div>
+              {actionButtons(t.player_id)}
+            </li>
           );
         })}
       </ul>
