@@ -300,27 +300,6 @@ ALTER TABLE attendance DROP CONSTRAINT attendance_user_id_fkey;
 ALTER TABLE attendance
 ADD COLUMN player_id uuid CONSTRAINT attendance_player_id_fkey REFERENCES players (id) ON DELETE CASCADE;
 
--- Migrate attendance from user_id to player_id
-UPDATE attendance a
-SET player_id = p.id
-FROM matches m, players p
-WHERE m.id = a.match_id
-  AND p.group_id = m.group_id
-  AND p.user_id = a.user_id;
-
-ALTER TABLE attendance ALTER COLUMN player_id SET NOT NULL;
-
-ALTER POLICY attendance_delete ON attendance USING ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
-
-ALTER POLICY attendance_insert ON attendance WITH CHECK ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
-
-ALTER POLICY attendance_update ON attendance USING ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
-
-ALTER TABLE attendance DROP COLUMN user_id;
-
-ALTER TABLE attendance
-ADD CONSTRAINT attendance_pkey PRIMARY KEY (match_id, player_id);
-
 ALTER TABLE group_members ALTER COLUMN role SET DEFAULT 'admin';
 
 ALTER TABLE group_members DROP CONSTRAINT group_members_role_check;
@@ -347,6 +326,27 @@ CREATE POLICY group_members_insert ON group_members FOR INSERT TO app_user WITH 
 ALTER POLICY groups_members_select ON group_members USING (is_group_member(group_id) OR is_group_admin(group_id));
 
 ALTER POLICY groups_select ON groups USING (is_group_member(id) OR is_group_admin(id) OR ((created_by = current_user_id()) AND (NOT group_has_members(id))));
+
+-- Migrate attendance from user_id to player_id
+UPDATE attendance a
+SET player_id = p.id
+FROM matches m, players p
+WHERE m.id = a.match_id
+  AND p.group_id = m.group_id
+  AND p.user_id = a.user_id;
+
+ALTER TABLE attendance ALTER COLUMN player_id SET NOT NULL;
+
+ALTER POLICY attendance_delete ON attendance USING ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
+
+ALTER POLICY attendance_insert ON attendance WITH CHECK ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
+
+ALTER POLICY attendance_update ON attendance USING ((player_id = current_player_id(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id)))) OR is_group_admin(( SELECT matches.group_id FROM matches WHERE (matches.id = attendance.match_id))));
+
+ALTER TABLE attendance DROP COLUMN user_id;
+
+ALTER TABLE attendance
+ADD CONSTRAINT attendance_pkey PRIMARY KEY (match_id, player_id);
 
 CREATE OR REPLACE FUNCTION add_creator_as_admin()
 RETURNS trigger
