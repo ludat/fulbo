@@ -219,7 +219,7 @@ export function TeamDisplay({
 
       {bench.length > 0 && (
         <div style={{ marginTop: "1rem" }}>
-          <h3>Suplentes ({bench.length})</h3>
+          <h3>Sin asignar ({bench.length})</h3>
           <ul className="member-list">
             {bench.map((a) => (
               <li key={a.player_id} className="member-item">
@@ -228,6 +228,15 @@ export function TeamDisplay({
                     <img src={a.players.users.avatar_url} alt="" className="member-avatar" />
                   )}
                   <span>{a.players.name}</span>
+                  {attributes && attributes.length > 0 && (
+                    <span className="player-axis-ratings">
+                      {attributes.map((attr) => (
+                        <span key={attr.id} className="player-rating-badge" title={attr.name}>
+                          {attr.abbreviation ?? attr.name}: {ratingMap.get(`${a.player_id}:${attr.id}`) ?? "-"}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </div>
                 {isAdmin && (
                   <div style={{ display: "flex", gap: "0.25rem" }}>

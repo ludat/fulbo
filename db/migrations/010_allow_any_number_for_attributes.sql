@@ -1,0 +1,1 @@
+ALTER TABLE player_ratings DROP CONSTRAINT player_ratings_rating_check;

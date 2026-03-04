@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { api } from "../../api/postgrest";
 
 type PlayerAttribute = {
@@ -25,7 +26,6 @@ type PlayerRating = {
 
 export function PlayerRatings() {
   const { groupId } = useParams<{ groupId: string }>();
-  const queryClient = useQueryClient();
 
   const { data: attributes } = useQuery({
     queryKey: ["player_attributes", groupId],
@@ -60,47 +60,7 @@ export function PlayerRatings() {
       }),
   });
 
-  const upsertRating = useMutation({
-    mutationFn: ({
-      playerId,
-      attributeId,
-      rating,
-    }: {
-      playerId: string;
-      attributeId: string;
-      rating: number;
-    }) =>
-      api("/player_ratings", {
-        method: "POST",
-        body: {
-          group_id: groupId,
-          player_id: playerId,
-          attribute_id: attributeId,
-          rating,
-        },
-        headers: {
-          Prefer: "resolution=merge-duplicates,return=representation",
-        },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["player_ratings", groupId] });
-    },
-  });
 
-  const deleteRating = useMutation({
-    mutationFn: ({ playerId, attributeId }: { playerId: string; attributeId: string }) =>
-      api("/player_ratings", {
-        method: "DELETE",
-        params: {
-          group_id: `eq.${groupId}`,
-          player_id: `eq.${playerId}`,
-          attribute_id: `eq.${attributeId}`,
-        },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["player_ratings", groupId] });
-    },
-  });
 
   if (!attributes || !players || !ratings)
     return <div className="loading">Cargando...</div>;
@@ -174,39 +134,16 @@ export function PlayerRatings() {
                       <span>{p.name}</span>
                     </div>
                   </td>
-                  {attributes.map((attr) => {
-                    const value = getRating(p.id, attr.id);
-                    return (
-                      <td key={attr.id}>
-                        <select
-                          value={value ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "") {
-                              deleteRating.mutate({
-                                playerId: p.id,
-                                attributeId: attr.id,
-                              });
-                            } else {
-                              upsertRating.mutate({
-                                playerId: p.id,
-                                attributeId: attr.id,
-                                rating: parseInt(val),
-                              });
-                            }
-                          }}
-                          className="rating-select"
-                        >
-                          <option value="">-</option>
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    );
-                  })}
+                  {attributes.map((attr) => (
+                    <td key={attr.id}>
+                      <RatingCell
+                        groupId={groupId!}
+                        playerId={p.id}
+                        attributeId={attr.id}
+                        value={getRating(p.id, attr.id)}
+                      />
+                    </td>
+                  ))}
                   <td>
                     <strong>{total}</strong>
                   </td>
@@ -216,6 +153,132 @@ export function PlayerRatings() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+type SaveStatus = "saving" | "saved" | "error" | null;
+
+function RatingCell({
+  groupId,
+  playerId,
+  attributeId,
+  value,
+}: {
+  groupId: string;
+  playerId: string;
+  attributeId: string;
+  value: number | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : "");
+  const [status, setStatus] = useState<SaveStatus>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Sync local value when the server value changes (e.g. after refetch)
+  const lastServerValue = useRef(value);
+  useEffect(() => {
+    if (value !== lastServerValue.current) {
+      lastServerValue.current = value;
+      setLocalValue(value != null ? String(value) : "");
+    }
+  }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
+  }, []);
+
+  function showSaved() {
+    setStatus("saved");
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    fadeTimerRef.current = setTimeout(() => setStatus(null), 2000);
+  }
+
+  const upsertRating = useMutation({
+    mutationFn: (rating: number) =>
+      api("/player_ratings", {
+        method: "POST",
+        body: {
+          group_id: groupId,
+          player_id: playerId,
+          attribute_id: attributeId,
+          rating,
+        },
+        headers: {
+          Prefer: "resolution=merge-duplicates,return=representation",
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["player_ratings", groupId] });
+      showSaved();
+    },
+    onError: () => setStatus("error"),
+  });
+
+  const deleteRating = useMutation({
+    mutationFn: () =>
+      api("/player_ratings", {
+        method: "DELETE",
+        params: {
+          group_id: `eq.${groupId}`,
+          player_id: `eq.${playerId}`,
+          attribute_id: `eq.${attributeId}`,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["player_ratings", groupId] });
+      showSaved();
+    },
+    onError: () => setStatus("error"),
+  });
+
+  const isSaving = upsertRating.isPending || deleteRating.isPending;
+  const displayStatus = isSaving ? "saving" : status;
+
+  function save() {
+    const trimmed = localValue.trim();
+    if (trimmed === "") {
+      // Only delete if there was a value before
+      if (value != null) {
+        setStatus("saving");
+        deleteRating.mutate();
+      }
+    } else {
+      const num = parseInt(trimmed);
+      if (!isNaN(num) && num !== value) {
+        setStatus("saving");
+        upsertRating.mutate(num);
+      }
+    }
+  }
+
+  return (
+    <div className="rating-cell">
+      <input
+        type="number"
+        value={localValue}
+        onChange={(e) => { if (!isSaving) setLocalValue(e.target.value); }}
+        onBlur={() => { if (!isSaving) save(); }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !isSaving) save(); }}
+        className={`rating-input${isSaving ? " rating-input-saving" : ""}${displayStatus === "error" ? " rating-input-error" : ""}`}
+      />
+      {displayStatus === "saving" && (
+        <span className="rating-status rating-status-saving" title="Guardando...">
+          &#8987;
+        </span>
+      )}
+      {displayStatus === "saved" && (
+        <span className="rating-status rating-status-saved" title="Guardado">
+          &#10003;
+        </span>
+      )}
+      {displayStatus === "error" && (
+        <span className="rating-status rating-status-error" title="Error al guardar">
+          &#10007;
+        </span>
+      )}
     </div>
   );
 }
