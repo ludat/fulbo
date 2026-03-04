@@ -5,11 +5,11 @@ db_reset: db_clear && db_start
 
 [group('db')]
 db_start:
-    docker compose up db -d
+    docker compose up -d db
 
 [group('db')]
 db_clear:
-    docker compose down -v
+    docker compose down -v db
 
 [group('db')]
 db_migrate:
