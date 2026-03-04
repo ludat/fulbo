@@ -30,8 +30,13 @@ db_setup_schema:
 [group('postgrest')]
 postgrest_restart:
     docker compose up --force-recreate postgrest -d
+
+[group('postgrest')]
+postgrest_reload:
+    docker compose kill -s SIGUSR1 postgrest
+
 [group('postgres')]
-postgrest_update_jwks: && postgrest_restart
+postgrest_update_jwks: && postgrest_reload
     #!/usr/bin/env nu
     let jwks_uri = http get 'http://localhost:8080/realms/fulbo/.well-known/openid-configuration' | get jwks_uri
     let certs = http get $jwks_uri | get keys
