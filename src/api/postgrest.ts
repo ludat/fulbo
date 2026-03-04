@@ -45,7 +45,14 @@ export async function api<T = unknown>(
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`API ${resp.status}: ${text}`);
+    let message = `API ${resp.status}: ${text}`;
+    try {
+      const json = JSON.parse(text);
+      if (json.message) message = json.message;
+    } catch {
+      // not JSON, use raw text
+    }
+    throw new Error(message);
   }
 
   const text = await resp.text();

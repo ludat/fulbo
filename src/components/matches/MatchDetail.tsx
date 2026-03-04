@@ -141,6 +141,11 @@ export function MatchDetail() {
             >
               Generar Equipos
             </button>
+            {generateTeams.isError && (
+              <span className="error">
+                {generateTeams.error?.message}
+              </span>
+            )}
             <Link
               to={`/groups/${groupId}/matches/${matchId}/edit`}
               className="btn btn-secondary"

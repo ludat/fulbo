@@ -1,30 +1,11 @@
-CREATE TABLE match_teams (
-    match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-    team INT NOT NULL CHECK (team IN (1, 2)),
-    PRIMARY KEY (match_id, player_id)
-);
-
-GRANT ALL PRIVILEGES ON TABLE match_teams TO app_user;
-ALTER TABLE match_teams ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY match_teams_select ON match_teams FOR SELECT TO app_user
-    USING (is_group_member((SELECT group_id FROM matches WHERE id = match_id)));
-
-CREATE POLICY match_teams_insert ON match_teams FOR INSERT TO app_user
-    WITH CHECK (is_group_admin((SELECT group_id FROM matches WHERE id = match_id)));
-
-CREATE POLICY match_teams_update ON match_teams FOR UPDATE TO app_user
-    USING (is_group_admin((SELECT group_id FROM matches WHERE id = match_id)));
-
-CREATE POLICY match_teams_delete ON match_teams FOR DELETE TO app_user
-    USING (is_group_admin((SELECT group_id FROM matches WHERE id = match_id)));
-
--- Generate balanced teams for a match
--- Greedy algorithm: sort players by total rating descending, assign each to
--- whichever team minimizes the sum of squared per-axis differences
-CREATE FUNCTION generate_teams(p_match_id UUID)
-RETURNS TABLE(o_match_id UUID, o_player_id UUID, o_team INT) AS $$
+CREATE OR REPLACE FUNCTION generate_teams(
+    p_match_id uuid
+)
+RETURNS TABLE(o_match_id uuid, o_player_id uuid, o_team integer)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+AS $$
 DECLARE
     v_group_id UUID;
     v_player RECORD;
@@ -160,6 +141,4 @@ BEGIN
 
     RETURN QUERY SELECT mt.match_id, mt.player_id, mt.team FROM match_teams mt WHERE mt.match_id = p_match_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-GRANT EXECUTE ON FUNCTION generate_teams(UUID) TO app_user;
+$$;
