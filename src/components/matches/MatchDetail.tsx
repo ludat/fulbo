@@ -103,6 +103,13 @@ export function MatchDetail() {
     },
   });
 
+  const shuffleTeams = useMutation({
+    mutationFn: () => rpc("shuffle_teams", { p_match_id: matchId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["match_teams", matchId] });
+    },
+  });
+
   const deleteMatch = useMutation({
     mutationFn: () =>
       api("/matches", {
@@ -195,7 +202,7 @@ export function MatchDetail() {
         <section>
           <h2>Equipos</h2>
           {isAdmin && (
-            <div style={{ marginBottom: "1rem" }}>
+            <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
               <button
                 className="btn btn-primary"
                 onClick={() => generateTeams.mutate()}
@@ -203,9 +210,21 @@ export function MatchDetail() {
               >
                 Generar Equipos
               </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => shuffleTeams.mutate()}
+                disabled={shuffleTeams.isPending}
+              >
+                Generar Equipos al azar
+              </button>
               {generateTeams.isError && (
-                <span className="error" style={{ marginLeft: "0.5rem" }}>
+                <span className="error">
                   {generateTeams.error?.message}
+                </span>
+              )}
+              {shuffleTeams.isError && (
+                <span className="error">
+                  {shuffleTeams.error?.message}
                 </span>
               )}
             </div>
