@@ -44,7 +44,7 @@ export function AttendanceList({
       api<AttendanceRow[]>("/attendance", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "player_id,status,players(id,name,user_id,users(avatar_url))",
+          select: "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
           order: "status.asc",
         },
       }),
@@ -67,7 +67,7 @@ export function AttendanceList({
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "id,name,user_id,users(avatar_url)",
+          select: "id,name,user_id,users!players_user_id_fkey(avatar_url)",
         },
       }),
   });

@@ -41,7 +41,7 @@ export function MemberList({ groupId }: { groupId: string }) {
       api<Admin[]>("/group_members", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "group_id,user_id,users(display_name,avatar_url)",
+          select: "group_id,user_id,users!group_members_user_id_fkey(display_name,avatar_url)",
         },
       }),
   });
@@ -54,7 +54,7 @@ export function MemberList({ groupId }: { groupId: string }) {
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "id,group_id,user_id,name,users(display_name,avatar_url)",
+          select: "id,group_id,user_id,name,users!players_user_id_fkey(display_name,avatar_url)",
         },
       }),
   });

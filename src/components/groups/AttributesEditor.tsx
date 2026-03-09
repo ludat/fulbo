@@ -10,6 +10,8 @@ type PlayerAttribute = {
   description: string | null;
   abbreviation: string | null;
   display_order: number;
+  min_rating: number;
+  max_rating: number;
 };
 
 export function AttributesEditor() {
@@ -18,6 +20,8 @@ export function AttributesEditor() {
   const [newName, setNewName] = useState("");
   const [newAbbreviation, setNewAbbreviation] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newMinRating, setNewMinRating] = useState("0");
+  const [newMaxRating, setNewMaxRating] = useState("10");
 
   const { data: attributes, isLoading } = useQuery({
     queryKey: ["player_attributes", groupId],
@@ -31,7 +35,7 @@ export function AttributesEditor() {
   });
 
   const addAttribute = useMutation({
-    mutationFn: ({ name, abbreviation, description }: { name: string; abbreviation: string; description: string }) =>
+    mutationFn: ({ name, abbreviation, description, min_rating, max_rating }: { name: string; abbreviation: string; description: string; min_rating: number; max_rating: number }) =>
       api("/player_attributes", {
         method: "POST",
         body: {
@@ -40,6 +44,8 @@ export function AttributesEditor() {
           abbreviation: abbreviation || null,
           description: description || null,
           display_order: (attributes?.length ?? 0),
+          min_rating,
+          max_rating,
         },
         headers: { Prefer: "return=representation" },
       }),
@@ -48,6 +54,8 @@ export function AttributesEditor() {
       setNewName("");
       setNewAbbreviation("");
       setNewDescription("");
+      setNewMinRating("0");
+      setNewMaxRating("10");
     },
   });
 
@@ -64,7 +72,7 @@ export function AttributesEditor() {
   });
 
   const updateAttribute = useMutation({
-    mutationFn: ({ id, ...fields }: { id: string; name?: string; abbreviation?: string | null; description?: string | null }) =>
+    mutationFn: ({ id, ...fields }: { id: string; name?: string; abbreviation?: string | null; description?: string | null; min_rating?: number; max_rating?: number }) =>
       api("/player_attributes", {
         method: "PATCH",
         params: { id: `eq.${id}` },
@@ -106,7 +114,7 @@ export function AttributesEditor() {
         onSubmit={(e) => {
           e.preventDefault();
           const trimmed = newName.trim();
-          if (trimmed) addAttribute.mutate({ name: trimmed, abbreviation: newAbbreviation.trim(), description: newDescription.trim() });
+          if (trimmed) addAttribute.mutate({ name: trimmed, abbreviation: newAbbreviation.trim(), description: newDescription.trim(), min_rating: parseInt(newMinRating) || 0, max_rating: parseInt(newMaxRating) || 10 });
         }}
         style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}
       >
@@ -143,6 +151,24 @@ export function AttributesEditor() {
           placeholder="Descripcion (opcional)"
           className="input"
         />
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <label>Min:</label>
+          <input
+            type="number"
+            value={newMinRating}
+            onChange={(e) => setNewMinRating(e.target.value)}
+            className="input"
+            style={{ width: "5rem" }}
+          />
+          <label>Max:</label>
+          <input
+            type="number"
+            value={newMaxRating}
+            onChange={(e) => setNewMaxRating(e.target.value)}
+            className="input"
+            style={{ width: "5rem" }}
+          />
+        </div>
       </form>
     </div>
   );
@@ -156,13 +182,15 @@ function AttributeRow({
 }: {
   attribute: PlayerAttribute;
   onDelete: () => void;
-  onUpdate: (fields: { name?: string; abbreviation?: string | null; description?: string | null }) => void;
+  onUpdate: (fields: { name?: string; abbreviation?: string | null; description?: string | null; min_rating?: number; max_rating?: number }) => void;
   disabled: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(attribute.name);
   const [abbreviation, setAbbreviation] = useState(attribute.abbreviation ?? "");
   const [description, setDescription] = useState(attribute.description ?? "");
+  const [minRating, setMinRating] = useState(String(attribute.min_rating));
+  const [maxRating, setMaxRating] = useState(String(attribute.max_rating));
 
   return (
     <li className="member-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
@@ -172,12 +200,16 @@ function AttributeRow({
             e.preventDefault();
             const trimmedName = name.trim();
             if (!trimmedName) return;
-            const fields: { name?: string; abbreviation?: string | null; description?: string | null } = {};
+            const fields: { name?: string; abbreviation?: string | null; description?: string | null; min_rating?: number; max_rating?: number } = {};
             if (trimmedName !== attribute.name) fields.name = trimmedName;
             const trimmedAbbr = abbreviation.trim();
             if (trimmedAbbr !== (attribute.abbreviation ?? "")) fields.abbreviation = trimmedAbbr || null;
             const trimmedDesc = description.trim();
             if (trimmedDesc !== (attribute.description ?? "")) fields.description = trimmedDesc || null;
+            const parsedMin = parseInt(minRating);
+            if (!isNaN(parsedMin) && parsedMin !== attribute.min_rating) fields.min_rating = parsedMin;
+            const parsedMax = parseInt(maxRating);
+            if (!isNaN(parsedMax) && parsedMax !== attribute.max_rating) fields.max_rating = parsedMax;
             if (Object.keys(fields).length > 0) onUpdate(fields);
             setEditing(false);
           }}
@@ -209,6 +241,24 @@ function AttributeRow({
             placeholder="Descripcion (opcional)"
             className="input"
           />
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <label>Min:</label>
+            <input
+              type="number"
+              value={minRating}
+              onChange={(e) => setMinRating(e.target.value)}
+              className="input"
+              style={{ width: "5rem" }}
+            />
+            <label>Max:</label>
+            <input
+              type="number"
+              value={maxRating}
+              onChange={(e) => setMaxRating(e.target.value)}
+              className="input"
+              style={{ width: "5rem" }}
+            />
+          </div>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button type="submit" className="btn btn-primary btn-sm">
               Guardar
@@ -220,6 +270,8 @@ function AttributeRow({
                 setName(attribute.name);
                 setAbbreviation(attribute.abbreviation ?? "");
                 setDescription(attribute.description ?? "");
+                setMinRating(String(attribute.min_rating));
+                setMaxRating(String(attribute.max_rating));
                 setEditing(false);
               }}
             >
@@ -234,6 +286,9 @@ function AttributeRow({
             {attribute.abbreviation && (
               <span className="badge badge-member" style={{ marginLeft: "0.5rem" }}>{attribute.abbreviation}</span>
             )}
+            <span style={{ marginLeft: "0.5rem", fontSize: "0.85rem", color: "#666" }}>
+              [{attribute.min_rating}–{attribute.max_rating}]
+            </span>
             {attribute.description && (
               <p className="subtitle" style={{ margin: "0.25rem 0 0 0", fontSize: "0.85rem" }}>{attribute.description}</p>
             )}

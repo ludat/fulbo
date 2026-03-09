@@ -5,14 +5,17 @@ CREATE TABLE player_attributes (
     description TEXT,
     abbreviation TEXT CHECK (length(abbreviation) <= 3),
     display_order INT NOT NULL DEFAULT 0,
-    UNIQUE(group_id, name)
+    min_rating INT NOT NULL DEFAULT 0,
+    max_rating INT NOT NULL DEFAULT 10,
+    UNIQUE(group_id, name),
+    CHECK (min_rating < max_rating)
 );
 
 GRANT ALL PRIVILEGES ON TABLE player_attributes TO app_user;
 ALTER TABLE player_attributes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY player_attributes_select ON player_attributes FOR SELECT TO app_user
-    USING (is_group_admin(group_id));
+    USING (is_group_member(group_id));
 
 CREATE POLICY player_attributes_insert ON player_attributes FOR INSERT TO app_user
     WITH CHECK (is_group_admin(group_id));

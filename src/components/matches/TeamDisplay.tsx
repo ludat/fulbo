@@ -54,7 +54,7 @@ export function TeamDisplay({
         params: {
           match_id: `eq.${matchId}`,
           select:
-            "match_id,player_id,team,players(id,name,user_id,users(avatar_url))",
+            "match_id,player_id,team,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
         },
       }),
   });
@@ -65,7 +65,7 @@ export function TeamDisplay({
       api<AttendanceRow[]>("/attendance", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "player_id,status,players(id,name,user_id,users(avatar_url))",
+          select: "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
         },
       }),
   });

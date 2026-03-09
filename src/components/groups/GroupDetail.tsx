@@ -74,8 +74,12 @@ export function GroupDetail() {
           <h1>{group.name}</h1>
           {group.description && <p className="subtitle">{group.description}</p>}
         </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Link to={`/groups/${groupId}/vote`} className="btn btn-secondary">
+            Votar
+          </Link>
         {isAdmin && (
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <>
             <button
               className="btn btn-danger"
               onClick={() => setShowDeleteDialog(true)}
@@ -115,8 +119,9 @@ export function GroupDetail() {
             >
               Programar Partido
             </Link>
-          </div>
+          </>
         )}
+        </div>
       </div>
 
       <section>

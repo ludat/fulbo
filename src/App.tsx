@@ -15,6 +15,7 @@ import { PastMatches } from "./components/matches/PastMatches";
 import { JoinByInvite } from "./components/groups/JoinByInvite";
 import { AttributesEditor } from "./components/groups/AttributesEditor";
 import { PlayerRatings } from "./components/groups/PlayerRatings";
+import { PlayerVoting } from "./components/groups/PlayerVoting";
 import { setTokenGetter, rpc } from "./api/postgrest";
 
 const queryClient = new QueryClient({
@@ -57,6 +58,10 @@ function AppRoutes() {
         <Route
           path="groups/:groupId/ratings"
           element={<PlayerRatings />}
+        />
+        <Route
+          path="groups/:groupId/vote"
+          element={<PlayerVoting />}
         />
         <Route
           path="groups/:groupId/matches/new"
