@@ -1,24 +1,9 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode } from "react";
 import { useAuth } from "react-oidc-context";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // After login completes, navigate to the saved URL via React Router.
-  useEffect(() => {
-    if (auth.isAuthenticated) {
-      const returnTo = sessionStorage.getItem("fulbo_return_to");
-      sessionStorage.removeItem("fulbo_return_to");
-      const currentUrl =
-        location.pathname + location.search + location.hash;
-      if (returnTo && returnTo !== currentUrl) {
-        navigate(returnTo, { replace: true });
-      }
-    }
-  }, [auth.isAuthenticated, navigate, location.pathname, location.search, location.hash]);
 
   if (auth.isLoading) {
     return <div className="loading">Cargando...</div>;

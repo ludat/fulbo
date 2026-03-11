@@ -18,6 +18,7 @@ import { AttributesEditor } from "./components/groups/AttributesEditor";
 import { PlayerRatings } from "./components/groups/PlayerRatings";
 import { PlayerVoting } from "./components/groups/PlayerVoting";
 import { setTokenGetter, rpc } from "./api/postgrest";
+import { useReturnToRedirect } from "./auth/useReturnToRedirect";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,9 @@ function AppRoutes() {
       rpc("ensure_user").catch(console.error);
     }
   }, [auth.isAuthenticated, auth.user?.access_token]);
+
+  // After OIDC callback, redirect to the saved URL
+  useReturnToRedirect();
 
   return (
     <FaroRoutes>
