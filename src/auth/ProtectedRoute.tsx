@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect } from "react";
 import { useAuth } from "react-oidc-context";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LandingPage } from "../components/LandingPage";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -35,8 +34,30 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!auth.isAuthenticated) {
-    return <LandingPage />;
+    return <LoginRequired />;
   }
 
   return <>{children}</>;
+}
+
+function LoginRequired() {
+  const auth = useAuth();
+  const location = useLocation();
+
+  const handleLogin = () => {
+    sessionStorage.setItem(
+      "fulbo_return_to",
+      location.pathname + location.search + location.hash,
+    );
+    auth.signinRedirect();
+  };
+
+  return (
+    <div className="login-required">
+      <h2>Tenés que estar logueado para acceder a esta página</h2>
+      <button className="btn btn-primary" onClick={handleLogin}>
+        Iniciar sesión
+      </button>
+    </div>
+  );
 }

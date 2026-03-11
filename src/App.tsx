@@ -5,7 +5,7 @@ import { useAuth } from "react-oidc-context";
 import { useEffect, useMemo } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
-import { GroupList } from "./components/groups/GroupList";
+import { HomePage } from "./components/HomePage";
 import { GroupForm } from "./components/groups/GroupForm";
 import { GroupEditForm } from "./components/groups/GroupEditForm";
 import { GroupDetail } from "./components/groups/GroupDetail";
@@ -41,6 +41,7 @@ function AppRoutes() {
 
   return (
     <FaroRoutes>
+      <Route index element={<HomePage />} />
       <Route
         element={
           <ProtectedRoute>
@@ -48,7 +49,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<GroupList />} />
         <Route path="groups/new" element={<GroupForm />} />
         <Route path="groups/:groupId" element={<GroupDetail />} />
         <Route path="groups/:groupId/edit" element={<GroupEditForm />} />
