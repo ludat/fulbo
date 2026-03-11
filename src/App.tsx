@@ -19,6 +19,7 @@ import { PlayerRatings } from "./components/groups/PlayerRatings";
 import { PlayerVoting } from "./components/groups/PlayerVoting";
 import { setTokenGetter, rpc } from "./api/postgrest";
 import { useReturnToRedirect } from "./auth/useReturnToRedirect";
+import { FeedbackWidget } from "./components/FeedbackWidget";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +98,7 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>
+        <FeedbackWidget />
       </FaroErrorBoundary>
     </QueryClientProvider>
   );
