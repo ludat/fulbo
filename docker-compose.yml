@@ -84,5 +84,24 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  lgtm:
+    image: grafana/otel-lgtm
+    ports:
+      - "3200:3000"   # Grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - lgtmdata:/data
+  alloy:
+    image: grafana/alloy
+    ports:
+      - "12347:12347" # Faro collector
+    volumes:
+      - ./deploy/alloy-local.alloy:/etc/alloy/config.alloy
+    depends_on:
+      - lgtm
+
 volumes:
   pgdata:
+  lgtmdata:

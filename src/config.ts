@@ -9,4 +9,5 @@ export const config = {
   apiUrl: resolve(cfg.apiUrl, "__VITE_API_URL__", import.meta.env.VITE_API_URL, "http://localhost:3000"),
   oidcAuthority: resolve(cfg.oidcAuthority, "__VITE_OIDC_AUTHORITY__", import.meta.env.VITE_OIDC_AUTHORITY, "http://localhost:8080/fulbo"),
   oidcClientId: resolve(cfg.oidcClientId, "__VITE_OIDC_CLIENT_ID__", import.meta.env.VITE_OIDC_CLIENT_ID, "fulbo"),
+  faroUrl: resolve(cfg.faroUrl, "__VITE_FARO_URL__", import.meta.env.VITE_FARO_URL, ""),
 };

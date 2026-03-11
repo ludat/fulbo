@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route } from "react-router-dom";
+import { FaroErrorBoundary, FaroRoutes } from "@grafana/faro-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { useEffect, useMemo } from "react";
@@ -39,7 +40,7 @@ function AppRoutes() {
   }, [auth.isAuthenticated, auth.user?.access_token]);
 
   return (
-    <Routes>
+    <FaroRoutes>
       <Route
         element={
           <ProtectedRoute>
@@ -81,16 +82,18 @@ function AppRoutes() {
         />
         <Route path="invite/:token" element={<JoinByInvite />} />
       </Route>
-    </Routes>
+    </FaroRoutes>
   );
 }
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <FaroErrorBoundary>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </FaroErrorBoundary>
     </QueryClientProvider>
   );
 }
