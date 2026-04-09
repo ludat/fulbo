@@ -1,14 +1,10 @@
 import clsx from "clsx";
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "react-oidc-context";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { api, rpc } from "../../api/postgrest";
-import { AttendanceToggle } from "./AttendanceToggle";
-import { AttendanceList } from "./AttendanceList";
-import { TeamDisplay } from "./TeamDisplay";
+import { api } from "../../api/postgrest";
 import { ConfirmButton } from "../ui/ConfirmButton";
 import { Button, LinkButton } from "../ui/Button";
 import { BackLink } from "../ui/BackLink";
@@ -23,14 +19,18 @@ type Match = {
   created_by: string;
 };
 type Player = { id: string };
-type Tab = "jugadores" | "equipos";
+
+const tabClass =
+  "px-5 py-2 text-base font-medium no-underline border-b-2 transition-colors cursor-pointer";
+const activeClass = "text-primary border-b-primary";
+const inactiveClass =
+  "text-text-secondary border-b-transparent hover:text-text";
 
 export function MatchDetail() {
   const { groupId, matchId } = useParams<{
     groupId: string;
     matchId: string;
   }>();
-  const [activeTab, setActiveTab] = useState<Tab>("jugadores");
   const auth = useAuth();
   const currentUserId = auth.user?.profile.sub;
   const navigate = useNavigate();
@@ -91,20 +91,6 @@ export function MatchDetail() {
     },
   });
 
-  const generateTeams = useMutation({
-    mutationFn: () => rpc("generate_teams", { p_match_id: matchId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["match_teams", matchId] });
-    },
-  });
-
-  const shuffleTeams = useMutation({
-    mutationFn: () => rpc("shuffle_teams", { p_match_id: matchId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["match_teams", matchId] });
-    },
-  });
-
   const deleteMatch = useMutation({
     mutationFn: () =>
       api("/matches", {
@@ -125,6 +111,8 @@ export function MatchDetail() {
   if (!match)
     return <div className="text-danger text-sm">Partido no encontrado</div>;
 
+  const basePath = `/groups/${groupId}/matches/${matchId}`;
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between">
@@ -143,10 +131,7 @@ export function MatchDetail() {
             >
               Repetir Partido
             </Button>
-            <LinkButton
-              to={`/groups/${groupId}/matches/${matchId}/edit`}
-              variant="secondary"
-            >
+            <LinkButton to={`${basePath}/edit`} variant="secondary">
               Editar
             </LinkButton>
           </div>
@@ -170,73 +155,34 @@ export function MatchDetail() {
         )}
       </div>
 
-      <div className="border-border mt-6 flex border-b-2">
-        {(["jugadores", "equipos"] as const).map((tab) => (
-          <button
-            key={tab}
-            className={clsx(
-              "-mb-0.5 cursor-pointer border-0 border-b-2 border-solid bg-transparent px-5 py-2 text-base font-medium transition-colors",
-              activeTab === tab
-                ? "text-primary border-b-primary"
-                : "text-text-secondary border-b-transparent",
-            )}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab === "jugadores" ? "Jugadores" : "Equipos"}
-          </button>
-        ))}
-      </div>
+      <nav className="border-border mt-6 flex border-b-2">
+        <NavLink
+          to={basePath}
+          end
+          className={({ isActive }) =>
+            clsx(tabClass, isActive ? activeClass : inactiveClass)
+          }
+        >
+          Jugadores
+        </NavLink>
+        <NavLink
+          to={`${basePath}/equipos`}
+          className={({ isActive }) =>
+            clsx(tabClass, isActive ? activeClass : inactiveClass)
+          }
+        >
+          Equipos
+        </NavLink>
+      </nav>
 
-      {activeTab === "jugadores" && (
-        <>
-          <section className="mt-8">
-            <h2 className="mb-3 text-lg">Tu Asistencia</h2>
-            <AttendanceToggle matchId={matchId!} playerId={currentPlayerId} />
-          </section>
-          <section className="mt-8">
-            <h2 className="mb-3 text-lg">Quienes van</h2>
-            <AttendanceList matchId={matchId!} groupId={groupId!} />
-          </section>
-        </>
-      )}
-
-      {activeTab === "equipos" && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg">Equipos</h2>
-          {isAdmin && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() => generateTeams.mutate()}
-                disabled={generateTeams.isPending}
-              >
-                Generar Equipos
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => shuffleTeams.mutate()}
-                disabled={shuffleTeams.isPending}
-              >
-                Generar Equipos al azar
-              </Button>
-              {generateTeams.isError && (
-                <span className="text-danger text-sm">
-                  {generateTeams.error?.message}
-                </span>
-              )}
-              {shuffleTeams.isError && (
-                <span className="text-danger text-sm">
-                  {shuffleTeams.error?.message}
-                </span>
-              )}
-            </div>
-          )}
-          <TeamDisplay
-            matchId={matchId!}
-            groupId={groupId!}
-            isAdmin={isAdmin}
-          />
-        </section>
-      )}
+      <Outlet
+        context={{
+          matchId: matchId!,
+          groupId: groupId!,
+          currentPlayerId,
+          isAdmin,
+        }}
+      />
     </div>
   );
 }

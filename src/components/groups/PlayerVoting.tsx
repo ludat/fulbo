@@ -73,7 +73,9 @@ export function PlayerVoting() {
   if (!attributes.length) {
     return (
       <div>
-        <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
+        <BackLink to={`/groups/${groupId}/stats`}>
+          &larr; Volver a stats
+        </BackLink>
         <h1>Votar Jugadores</h1>
         <p className="text-text-secondary p-6 text-center italic">
           No hay atributos definidos todavia.
@@ -90,7 +92,7 @@ export function PlayerVoting() {
 
   return (
     <div>
-      <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
+      <BackLink to={`/groups/${groupId}/stats`}>&larr; Volver a stats</BackLink>
       <h1>Votar Jugadores</h1>
       <p className="text-text-secondary">
         Vota los atributos de los demas jugadores.

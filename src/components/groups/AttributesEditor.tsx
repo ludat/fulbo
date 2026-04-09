@@ -122,7 +122,7 @@ export function AttributesEditor() {
 
   return (
     <div>
-      <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
+      <BackLink to={`/groups/${groupId}/stats`}>&larr; Volver a stats</BackLink>
 
       <h1>Atributos</h1>
       <p className="text-text-secondary">

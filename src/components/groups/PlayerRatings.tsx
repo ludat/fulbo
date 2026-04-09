@@ -135,7 +135,9 @@ export function PlayerRatings() {
   if (!attributes.length) {
     return (
       <div>
-        <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
+        <BackLink to={`/groups/${groupId}/stats`}>
+          &larr; Volver a stats
+        </BackLink>
         <h1>Puntuaciones</h1>
         <p className="text-text-secondary p-6 text-center italic">
           Primero necesitas{" "}
@@ -159,7 +161,7 @@ export function PlayerRatings() {
 
   return (
     <div>
-      <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
+      <BackLink to={`/groups/${groupId}/stats`}>&larr; Volver a stats</BackLink>
       <h1>Puntuaciones</h1>
 
       <div className="overflow-x-auto">

@@ -9,9 +9,14 @@ import { HomePage } from "./components/HomePage";
 import { GroupForm } from "./components/groups/GroupForm";
 import { GroupEditForm } from "./components/groups/GroupEditForm";
 import { GroupDetail } from "./components/groups/GroupDetail";
+import { GroupMembers } from "./components/groups/GroupMembers";
+import { GroupRatings } from "./components/groups/GroupRatings";
+import { GroupSettings } from "./components/groups/GroupSettings";
 import { MatchForm } from "./components/matches/MatchForm";
 import { MatchEditForm } from "./components/matches/MatchEditForm";
 import { MatchDetail } from "./components/matches/MatchDetail";
+import { MatchPlayers } from "./components/matches/MatchPlayers";
+import { MatchTeams } from "./components/matches/MatchTeams";
 import { PastMatches } from "./components/matches/PastMatches";
 import { JoinByInvite } from "./components/groups/JoinByInvite";
 import { AttributesEditor } from "./components/groups/AttributesEditor";
@@ -56,6 +61,9 @@ function AppRoutes() {
       >
         <Route path="groups/new" element={<GroupForm />} />
         <Route path="groups/:groupId" element={<GroupDetail />} />
+        <Route path="groups/:groupId/members" element={<GroupMembers />} />
+        <Route path="groups/:groupId/stats" element={<GroupRatings />} />
+        <Route path="groups/:groupId/settings" element={<GroupSettings />} />
         <Route path="groups/:groupId/edit" element={<GroupEditForm />} />
         <Route
           path="groups/:groupId/attributes"
@@ -68,7 +76,10 @@ function AppRoutes() {
         <Route
           path="groups/:groupId/matches/:matchId"
           element={<MatchDetail />}
-        />
+        >
+          <Route index element={<MatchPlayers />} />
+          <Route path="equipos" element={<MatchTeams />} />
+        </Route>
         <Route
           path="groups/:groupId/matches/:matchId/edit"
           element={<MatchEditForm />}

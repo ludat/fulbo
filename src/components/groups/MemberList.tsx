@@ -6,18 +6,13 @@ import { ConfirmButton } from "../ui/ConfirmButton";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Input } from "../ui/Input";
+import { InfoTooltip } from "../ui/InfoTooltip";
+import { InviteLinks } from "./InviteLinks";
 
 type Admin = {
   group_id: string;
   user_id: string;
   users: { display_name: string; avatar_url: string | null };
-};
-
-type Invite = {
-  id: string;
-  group_id: string;
-  token: string;
-  created_at: string;
 };
 
 type Player = {
@@ -32,7 +27,6 @@ export function MemberList({ groupId }: { groupId: string }) {
   const queryClient = useQueryClient();
   const auth = useAuth();
   const currentUserId = auth.user?.profile.sub;
-  const [copied, setCopied] = useState<string | null>(null);
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingPlayerName, setEditingPlayerName] = useState("");
   const [newPlayerName, setNewPlayerName] = useState("");
@@ -61,41 +55,6 @@ export function MemberList({ groupId }: { groupId: string }) {
             "id,group_id,user_id,name,users!players_user_id_fkey(display_name,avatar_url)",
         },
       }),
-  });
-
-  const { data: invites } = useQuery({
-    queryKey: ["group_invites", groupId],
-    queryFn: () =>
-      api<Invite[]>("/group_invites", {
-        params: {
-          group_id: `eq.${groupId}`,
-          select: "id,group_id,token,created_at",
-        },
-      }),
-    enabled: !!isAdmin,
-  });
-
-  const createInvite = useMutation({
-    mutationFn: () =>
-      api("/group_invites", {
-        method: "POST",
-        body: { group_id: groupId },
-        headers: { Prefer: "return=representation" },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group_invites", groupId] });
-    },
-  });
-
-  const deleteInvite = useMutation({
-    mutationFn: (inviteId: string) =>
-      api("/group_invites", {
-        method: "DELETE",
-        params: { id: `eq.${inviteId}` },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group_invites", groupId] });
-    },
   });
 
   const promoteToAdmin = useMutation({
@@ -190,13 +149,6 @@ export function MemberList({ groupId }: { groupId: string }) {
     },
   });
 
-  function copyInviteLink(token: string) {
-    const url = `${window.location.origin}/invite/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopied(token);
-    setTimeout(() => setCopied(null), 2000);
-  }
-
   if (isLoading)
     return (
       <div className="text-text-secondary p-8 text-center">
@@ -237,245 +189,213 @@ export function MemberList({ groupId }: { groupId: string }) {
   }
 
   return (
-    <div>
-      <h3>Jugadores</h3>
-      <ul className="list-none">
-        {players?.map((p) => {
-          const currentUserHasPlayer = players.some(
-            (pl) => pl.user_id === currentUserId,
-          );
-          return (
-            <li
-              key={p.id}
-              className="border-border flex items-center justify-between border-b py-2"
+    <div className="flex flex-col gap-8">
+      <section>
+        <h3>
+          Jugadores
+          <InfoTooltip text="Los jugadores participan en los partidos y se les asignan equipos. Puede haber jugadores sin vincular a una cuenta." />
+        </h3>
+        <ul className="list-none">
+          {players?.map((p) => {
+            const currentUserHasPlayer = players.some(
+              (pl) => pl.user_id === currentUserId,
+            );
+            return (
+              <li
+                key={p.id}
+                className="border-border flex items-center justify-between border-b py-2"
+              >
+                {editingPlayerId === p.id ? (
+                  <form
+                    className="flex items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (editingPlayerName.trim()) {
+                        updatePlayer.mutate({
+                          playerId: p.id,
+                          name: editingPlayerName.trim(),
+                        });
+                      }
+                    }}
+                  >
+                    <Input
+                      type="text"
+                      value={editingPlayerName}
+                      onChange={(e) => setEditingPlayerName(e.target.value)}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      type="submit"
+                      disabled={updatePlayer.isPending}
+                    >
+                      Guardar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      type="button"
+                      onClick={() => setEditingPlayerId(null)}
+                    >
+                      Cancelar
+                    </Button>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      {p.users?.avatar_url && (
+                        <img
+                          src={p.users.avatar_url}
+                          alt=""
+                          className="h-6 w-6 rounded-full"
+                        />
+                      )}
+                      <span>{p.name}</span>
+                      {!p.user_id && (
+                        <Badge variant="admin">sin vincular</Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      {!p.user_id && !currentUserHasPlayer && (
+                        <Button
+                          size="sm"
+                          onClick={() => claimPlayer.mutate(p.id)}
+                          disabled={claimPlayer.isPending}
+                        >
+                          Soy yo
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setEditingPlayerId(p.id);
+                            setEditingPlayerName(p.name);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                      {isAdmin && p.user_id && p.user_id !== currentUserId && (
+                        <ConfirmButton
+                          label="Desvincular"
+                          confirmLabel="Sí, desvincular"
+                          onConfirm={() => unlinkPlayer.mutate(p.id)}
+                          disabled={unlinkPlayer.isPending}
+                        />
+                      )}
+                      {isAdmin && !p.user_id && (
+                        <ConfirmButton
+                          label="Eliminar"
+                          confirmLabel="Sí, eliminar"
+                          onConfirm={() => deletePlayer.mutate(p.id)}
+                          disabled={deletePlayer.isPending}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        {isAdmin && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newPlayerName.trim()) {
+                createPlayer.mutate(newPlayerName.trim());
+              }
+            }}
+            className="mt-2 flex gap-2"
+          >
+            <Input
+              type="text"
+              value={newPlayerName}
+              onChange={(e) => setNewPlayerName(e.target.value)}
+              placeholder="Nombre del jugador"
+            />
+            <Button
+              size="sm"
+              type="submit"
+              disabled={createPlayer.isPending || !newPlayerName.trim()}
             >
-              {editingPlayerId === p.id ? (
-                <form
-                  className="flex items-center gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (editingPlayerName.trim()) {
-                      updatePlayer.mutate({
-                        playerId: p.id,
-                        name: editingPlayerName.trim(),
-                      });
-                    }
-                  }}
-                >
-                  <Input
-                    type="text"
-                    value={editingPlayerName}
-                    onChange={(e) => setEditingPlayerName(e.target.value)}
-                    autoFocus
-                  />
-                  <Button
-                    size="sm"
-                    type="submit"
-                    disabled={updatePlayer.isPending}
-                  >
-                    Guardar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    type="button"
-                    onClick={() => setEditingPlayerId(null)}
-                  >
-                    Cancelar
-                  </Button>
-                </form>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    {p.users?.avatar_url && (
-                      <img
-                        src={p.users.avatar_url}
-                        alt=""
-                        className="h-6 w-6 rounded-full"
-                      />
-                    )}
-                    <span>{p.name}</span>
-                    {!p.user_id && <Badge variant="admin">sin vincular</Badge>}
-                  </div>
+              Agregar Jugador
+            </Button>
+          </form>
+        )}
+      </section>
+
+      <section>
+        <h3>
+          Miembros
+          <InfoTooltip text="Los miembros son las personas con cuenta que forman parte del grupo. Los admins pueden gestionar jugadores, equipos y partidos." />
+        </h3>
+        <ul className="list-none">
+          {members.map((m) => {
+            const isCurrentUser = m.userId === currentUserId;
+            return (
+              <li
+                key={m.userId}
+                className="border-border flex items-center justify-between border-b py-2"
+              >
+                <div className="flex items-center gap-2">
+                  {m.avatarUrl && (
+                    <img
+                      src={m.avatarUrl}
+                      alt=""
+                      className="h-6 w-6 rounded-full"
+                    />
+                  )}
+                  <span>
+                    {m.displayName}
+                    {(() => {
+                      const player = players?.find(
+                        (p) => p.user_id === m.userId,
+                      );
+                      return player ? ` (${player.name})` : null;
+                    })()}
+                  </span>
+                  {m.isAdmin && <Badge variant="admin">admin</Badge>}
+                </div>
+                {isAdmin && !isCurrentUser && (
                   <div className="flex gap-1">
-                    {!p.user_id && !currentUserHasPlayer && (
-                      <Button
-                        size="sm"
-                        onClick={() => claimPlayer.mutate(p.id)}
-                        disabled={claimPlayer.isPending}
-                      >
-                        Soy yo
-                      </Button>
-                    )}
-                    {isAdmin && (
+                    {m.isAdmin ? (
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          setEditingPlayerId(p.id);
-                          setEditingPlayerName(p.name);
-                        }}
+                        onClick={() => demoteFromAdmin.mutate(m.userId)}
+                        disabled={demoteFromAdmin.isPending}
                       >
-                        Editar
+                        Quitar Admin
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => promoteToAdmin.mutate(m.userId)}
+                        disabled={promoteToAdmin.isPending}
+                      >
+                        Hacer Admin
                       </Button>
                     )}
-                    {isAdmin && p.user_id && p.user_id !== currentUserId && (
-                      <ConfirmButton
-                        label="Desvincular"
-                        confirmLabel="Sí, desvincular"
-                        onConfirm={() => unlinkPlayer.mutate(p.id)}
-                        disabled={unlinkPlayer.isPending}
-                      />
-                    )}
-                    {isAdmin && !p.user_id && (
-                      <ConfirmButton
-                        label="Eliminar"
-                        confirmLabel="Sí, eliminar"
-                        onConfirm={() => deletePlayer.mutate(p.id)}
-                        disabled={deletePlayer.isPending}
-                      />
-                    )}
+                    <ConfirmButton
+                      label="Expulsar"
+                      confirmLabel="Sí, expulsar"
+                      onConfirm={() => expelMember.mutate(m.userId)}
+                      disabled={expelMember.isPending}
+                    />
                   </div>
-                </>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {isAdmin && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (newPlayerName.trim()) {
-              createPlayer.mutate(newPlayerName.trim());
-            }
-          }}
-          className="mt-2 flex gap-2"
-        >
-          <Input
-            type="text"
-            value={newPlayerName}
-            onChange={(e) => setNewPlayerName(e.target.value)}
-            placeholder="Nombre del jugador"
-          />
-          <Button
-            size="sm"
-            type="submit"
-            disabled={createPlayer.isPending || !newPlayerName.trim()}
-          >
-            Agregar Jugador
-          </Button>
-        </form>
-      )}
-
-      <h3>Miembros</h3>
-      <ul className="list-none">
-        {members.map((m) => {
-          const isCurrentUser = m.userId === currentUserId;
-          return (
-            <li
-              key={m.userId}
-              className="border-border flex items-center justify-between border-b py-2"
-            >
-              <div className="flex items-center gap-2">
-                {m.avatarUrl && (
-                  <img
-                    src={m.avatarUrl}
-                    alt=""
-                    className="h-6 w-6 rounded-full"
-                  />
                 )}
-                <span>
-                  {m.displayName}
-                  {(() => {
-                    const player = players?.find((p) => p.user_id === m.userId);
-                    return player ? ` (${player.name})` : null;
-                  })()}
-                </span>
-                {m.isAdmin && <Badge variant="admin">admin</Badge>}
-              </div>
-              {isAdmin && !isCurrentUser && (
-                <div className="flex gap-1">
-                  {m.isAdmin ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => demoteFromAdmin.mutate(m.userId)}
-                      disabled={demoteFromAdmin.isPending}
-                    >
-                      Quitar Admin
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => promoteToAdmin.mutate(m.userId)}
-                      disabled={promoteToAdmin.isPending}
-                    >
-                      Hacer Admin
-                    </Button>
-                  )}
-                  <ConfirmButton
-                    label="Expulsar"
-                    confirmLabel="Sí, expulsar"
-                    onConfirm={() => expelMember.mutate(m.userId)}
-                    disabled={expelMember.isPending}
-                  />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-      {isAdmin && (
-        <div className="mt-4">
-          <h3 className="mb-2 text-base">Links de Invitacion</h3>
-          {invites?.length ? (
-            <ul className="list-none">
-              {invites.map((inv) => (
-                <li
-                  key={inv.id}
-                  className="border-border flex items-center justify-between gap-2 border-b py-2"
-                >
-                  <code className="text-text-secondary min-w-0 overflow-hidden text-xs text-ellipsis whitespace-nowrap">
-                    {`${window.location.origin}/invite/${inv.token}`}
-                  </code>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => copyInviteLink(inv.token)}
-                    >
-                      {copied === inv.token ? "Copiado!" : "Copiar"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => deleteInvite.mutate(inv.id)}
-                    >
-                      Revocar
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-text-secondary p-6 text-center italic">
-              No hay links de invitacion todavia.
-            </p>
-          )}
-          <Button
-            size="sm"
-            className="mt-2"
-            onClick={() => createInvite.mutate()}
-            disabled={createInvite.isPending}
-          >
-            Crear Link de Invitacion
-          </Button>
-        </div>
-      )}
+      {isAdmin && <InviteLinks groupId={groupId} />}
     </div>
   );
 }
