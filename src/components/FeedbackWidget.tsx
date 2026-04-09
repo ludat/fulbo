@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { faro } from "../faro";
+import { Button } from "./ui/Button";
+import { Textarea } from "./ui/Input";
 
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
@@ -20,47 +22,49 @@ export function FeedbackWidget() {
   }
 
   return (
-    <div className="feedback-widget">
+    <div className="fixed right-6 bottom-6 z-200">
       {open ? (
-        <div className="feedback-panel">
+        <div className="bg-surface border-border flex w-72 flex-col gap-2 rounded-lg border p-4 shadow-xl">
           {sent ? (
-            <p className="feedback-thanks">Gracias por tu feedback!</p>
+            <p className="text-primary py-4 text-center font-medium">
+              Gracias por tu feedback!
+            </p>
           ) : (
             <>
-              <div className="feedback-header">
+              <div className="flex items-center justify-between text-base font-semibold">
                 <span>Enviar feedback</span>
                 <button
-                  className="feedback-close"
+                  className="text-text-secondary cursor-pointer border-none bg-transparent text-xl leading-none"
                   onClick={() => setOpen(false)}
                 >
                   &times;
                 </button>
               </div>
-              <textarea
-                className="feedback-textarea"
+              <Textarea
                 placeholder="Contanos que te parece..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
+                className="resize-y"
                 autoFocus
               />
-              <button
-                className="btn btn-primary btn-sm"
+              <Button
+                size="sm"
                 onClick={handleSubmit}
                 disabled={!message.trim()}
               >
                 Enviar
-              </button>
+              </Button>
             </>
           )}
         </div>
       ) : (
-        <button
-          className="feedback-trigger btn btn-primary"
+        <Button
+          className="rounded-full shadow-md"
           onClick={() => setOpen(true)}
         >
           Feedback
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -1,5 +1,7 @@
+import clsx from "clsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
 
 type TeamAssignment = {
   match_id: string;
@@ -12,19 +14,12 @@ type TeamAssignment = {
     users: { avatar_url: string | null } | null;
   };
 };
-
 type PlayerAttribute = {
   id: string;
   name: string;
   abbreviation: string | null;
 };
-
-type PlayerRating = {
-  player_id: string;
-  attribute_id: string;
-  rating: number;
-};
-
+type PlayerRating = { player_id: string; attribute_id: string; rating: number };
 type AttendanceRow = {
   player_id: string;
   status: string;
@@ -65,7 +60,8 @@ export function TeamDisplay({
       api<AttendanceRow[]>("/attendance", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
+          select:
+            "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
         },
       }),
   });
@@ -135,27 +131,26 @@ export function TeamDisplay({
     },
   });
 
-  if (isLoading) return <div className="loading">Cargando equipos...</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">
+        Cargando equipos...
+      </div>
+    );
 
   const team1 = teams?.filter((t) => t.team === 1) ?? [];
   const team2 = teams?.filter((t) => t.team === 2) ?? [];
-
-  // Players going but not assigned to any team
   const assignedPlayerIds = new Set(teams?.map((t) => t.player_id) ?? []);
   const goingAttendance = attendance?.filter((a) => a.status === "going") ?? [];
   const bench = goingAttendance.filter(
     (a) => !assignedPlayerIds.has(a.player_id),
   );
-
   const goingPlayerIds = new Set(goingAttendance.map((a) => a.player_id));
 
-  // Build rating lookup: "playerId:attributeId" -> rating
   const ratingMap = new Map<string, number>();
-  if (ratings) {
-    for (const r of ratings) {
+  if (ratings)
+    for (const r of ratings)
       ratingMap.set(`${r.player_id}:${r.attribute_id}`, r.rating);
-    }
-  }
 
   function attrSum(teamPlayers: TeamAssignment[], attributeId: string): number {
     return teamPlayers.reduce(
@@ -183,16 +178,21 @@ export function TeamDisplay({
       {(team1.length > 0 || team2.length > 0) && (
         <>
           {hasAttrs && (
-            <div className="teams-diff">
-              <h4>Diferencia entre equipos</h4>
-              <div className="team-axis-sums">
+            <div className="mt-4">
+              <h4 className="mb-2 text-sm">Diferencia entre equipos</h4>
+              <div className="mb-3 flex flex-wrap gap-1.5">
                 {attributes.map((attr) => {
                   const diff =
                     attrSum(team1, attr.id) - attrSum(team2, attr.id);
                   return (
                     <span
                       key={attr.id}
-                      className={`team-axis-chip ${diff === 0 ? "diff-even" : "diff-uneven"}`}
+                      className={clsx(
+                        "rounded-full px-2 py-0.5 text-xs",
+                        diff === 0
+                          ? "text-primary bg-green-100"
+                          : "bg-orange-100 text-orange-800",
+                      )}
                     >
                       {attr.name}: {diff > 0 ? "+" : ""}
                       {diff}
@@ -200,7 +200,12 @@ export function TeamDisplay({
                   );
                 })}
                 <span
-                  className={`team-axis-chip ${t1Total === t2Total ? "diff-even" : "diff-uneven"}`}
+                  className={clsx(
+                    "rounded-full px-2 py-0.5 text-xs",
+                    t1Total === t2Total
+                      ? "text-primary bg-green-100"
+                      : "bg-orange-100 text-orange-800",
+                  )}
                 >
                   <strong>
                     Total: {t1Total - t2Total > 0 ? "+" : ""}
@@ -210,7 +215,7 @@ export function TeamDisplay({
               </div>
             </div>
           )}
-          <div className="teams-container">
+          <div className="grid grid-cols-2 gap-6">
             <TeamColumn
               label="Equipo 1"
               players={team1}
@@ -245,55 +250,53 @@ export function TeamDisplay({
       )}
 
       {bench.length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="mt-4">
           <h3>Sin asignar ({bench.length})</h3>
-          <ul className="member-list">
+          <ul className="list-none">
             {bench.map((a) => (
-              <li key={a.player_id} className="member-item">
-                <div className="member-info">
+              <li
+                key={a.player_id}
+                className="border-border flex items-center justify-between border-b py-2"
+              >
+                <div className="flex items-center gap-2">
                   {a.players.users?.avatar_url && (
                     <img
                       src={a.players.users.avatar_url}
                       alt=""
-                      className="member-avatar"
+                      className="h-6 w-6 rounded-full"
                     />
                   )}
                   <span>{a.players.name}</span>
-                  {attributes && attributes.length > 0 && (
-                    <span className="player-axis-ratings">
-                      {attributes.map((attr) => (
-                        <span
-                          key={attr.id}
-                          className="player-rating-badge"
-                          title={attr.name}
-                        >
-                          {attr.abbreviation ?? attr.name}:{" "}
-                          {ratingMap.get(`${a.player_id}:${attr.id}`) ?? "-"}
-                        </span>
-                      ))}
-                    </span>
+                  {hasAttrs && (
+                    <PlayerRatingBadges
+                      attributes={attributes}
+                      ratingMap={ratingMap}
+                      playerId={a.player_id}
+                    />
                   )}
                 </div>
                 {isAdmin && (
-                  <div style={{ display: "flex", gap: "0.25rem" }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() =>
                         addToTeam.mutate({ playerId: a.player_id, team: 1 })
                       }
                       disabled={addToTeam.isPending}
                     >
                       → Eq 1
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() =>
                         addToTeam.mutate({ playerId: a.player_id, team: 2 })
                       }
                       disabled={addToTeam.isPending}
                     >
                       → Eq 2
-                    </button>
+                    </Button>
                   </div>
                 )}
               </li>
@@ -302,6 +305,32 @@ export function TeamDisplay({
         </div>
       )}
     </div>
+  );
+}
+
+function PlayerRatingBadges({
+  attributes,
+  ratingMap,
+  playerId,
+}: {
+  attributes: PlayerAttribute[];
+  ratingMap: Map<string, number>;
+  playerId: string;
+}) {
+  return (
+    <span className="ml-1 flex gap-1">
+      {/* text-[0.65rem]: smaller than text-xs to fit multiple rating badges inline */}
+      {attributes.map((attr) => (
+        <span
+          key={attr.id}
+          className="text-text-secondary rounded-full bg-gray-100 px-1.5 py-0.5 text-[0.65rem]"
+          title={attr.name}
+        >
+          {attr.abbreviation ?? attr.name}:{" "}
+          {ratingMap.get(`${playerId}:${attr.id}`) ?? "-"}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -341,85 +370,92 @@ function TeamColumn({
 
   const actionButtons = (playerId: string) =>
     isAdmin ? (
-      <div style={{ display: "flex", gap: "0.25rem" }}>
+      <div className="flex gap-1">
         {swapBefore && (
-          <button
-            className="btn btn-secondary btn-sm"
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() =>
               swapTeam.mutate({ playerId, newTeam: swapDirection })
             }
             disabled={swapTeam.isPending}
           >
             {swapLabel}
-          </button>
+          </Button>
         )}
-        <button
-          className="btn btn-secondary btn-sm"
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={() => removeFromTeam.mutate(playerId)}
           disabled={removeFromTeam.isPending}
           title="Mandar al banco"
         >
           ✕
-        </button>
+        </Button>
         {!swapBefore && (
-          <button
-            className="btn btn-secondary btn-sm"
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() =>
               swapTeam.mutate({ playerId, newTeam: swapDirection })
             }
             disabled={swapTeam.isPending}
           >
             {swapLabel}
-          </button>
+          </Button>
         )}
       </div>
     ) : null;
 
   return (
-    <div className="team-column">
-      <h3>
+    <div className="bg-surface border-border rounded-lg border p-4">
+      <h3 className="mb-2 text-base">
         {label} ({players.length})
-        {hasAttrs ? <span className="team-total"> — {total} pts</span> : null}
+        {hasAttrs ? (
+          <span className="text-text-secondary text-sm font-normal">
+            {" "}
+            — {total} pts
+          </span>
+        ) : null}
       </h3>
       {hasAttrs ? (
-        <div className="team-axis-sums">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {attributes.map((attr) => (
-            <span key={attr.id} className="team-axis-chip">
+            <span
+              key={attr.id}
+              className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800"
+            >
               {attr.name}: {attrSum(attr.id)}
             </span>
           ))}
         </div>
       ) : null}
-      <ul>
+      <ul className="list-none">
         {players.map((t) => {
           const isNotGoing = !goingPlayerIds.has(t.player_id);
           return (
             <li
               key={t.player_id}
-              className={`member-item${isNotGoing ? " player-not-going" : ""}`}
+              className={clsx(
+                "border-border flex items-center justify-between border-b py-2",
+                isNotGoing && "text-danger rounded-lg bg-red-50",
+              )}
             >
-              <div className="member-info">
+              <div className="flex items-center gap-2">
                 {t.players.users?.avatar_url && (
                   <img
                     src={t.players.users.avatar_url}
                     alt=""
-                    className="member-avatar"
+                    className="h-6 w-6 rounded-full"
                   />
                 )}
                 <span>{t.players.name}</span>
                 {hasAttrs && (
-                  <span className="player-axis-ratings">
-                    {attributes.map((attr) => (
-                      <span
-                        key={attr.id}
-                        className="player-rating-badge"
-                        title={attr.name}
-                      >
-                        {attr.abbreviation ?? attr.name}:{" "}
-                        {ratingMap.get(`${t.player_id}:${attr.id}`) ?? "-"}
-                      </span>
-                    ))}
-                  </span>
+                  <PlayerRatingBadges
+                    attributes={attributes}
+                    ratingMap={ratingMap}
+                    playerId={t.player_id}
+                  />
                 )}
               </div>
               {actionButtons(t.player_id)}

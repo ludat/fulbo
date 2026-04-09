@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
+import { FormField } from "../ui/FormField";
+import { Input, Textarea } from "../ui/Input";
 
 export function MatchForm() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -34,55 +37,48 @@ export function MatchForm() {
     <div>
       <h1>Programar Partido</h1>
       <form
-        className="form"
+        className="max-w-lg"
         onSubmit={(e) => {
           e.preventDefault();
           createMatch.mutate();
         }}
       >
-        <label className="form-field">
-          <span>Fecha y Hora</span>
-          <input
+        <FormField label="Fecha y Hora">
+          <Input
             type="datetime-local"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
             required
           />
-        </label>
-        <label className="form-field">
-          <span>Lugar</span>
-          <input
+        </FormField>
+        <FormField label="Lugar">
+          <Input
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
           />
-        </label>
-        <label className="form-field">
-          <span>Notas</span>
-          <textarea
+        </FormField>
+        <FormField label="Notas">
+          <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
           />
-        </label>
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={createMatch.isPending}
-          >
+        </FormField>
+        <div className="mt-4 flex gap-2">
+          <Button type="submit" disabled={createMatch.isPending}>
             {createMatch.isPending ? "Creando..." : "Programar"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => navigate(`/groups/${groupId}`)}
           >
             Cancelar
-          </button>
+          </Button>
         </div>
         {createMatch.isError && (
-          <p className="error">{createMatch.error.message}</p>
+          <p className="text-danger text-sm">{createMatch.error.message}</p>
         )}
       </form>
     </div>

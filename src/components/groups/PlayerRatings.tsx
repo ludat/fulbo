@@ -1,7 +1,11 @@
+import clsx from "clsx";
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
+import { BackLink } from "../ui/BackLink";
+import { tableClasses } from "../ui/Table";
 
 type PlayerAttribute = {
   id: string;
@@ -44,7 +48,9 @@ type IndividualVote = {
 export function PlayerRatings() {
   const { groupId } = useParams<{ groupId: string }>();
   const queryClient = useQueryClient();
-  const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
+  const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(
+    new Set(),
+  );
 
   const { data: attributes } = useQuery({
     queryKey: ["player_attributes", groupId],
@@ -83,9 +89,7 @@ export function PlayerRatings() {
     queryKey: ["player_vote_averages", groupId],
     queryFn: () =>
       api<VoteAverage[]>("/player_vote_averages", {
-        params: {
-          group_id: `eq.${groupId}`,
-        },
+        params: { group_id: `eq.${groupId}` },
       }),
   });
 
@@ -95,14 +99,22 @@ export function PlayerRatings() {
       api<IndividualVote[]>("/player_attribute_votes", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "player_id,attribute_id,voter_id,rating,users!player_attribute_votes_voter_id_fkey(display_name)",
+          select:
+            "player_id,attribute_id,voter_id,rating,users!player_attribute_votes_voter_id_fkey(display_name)",
         },
       }),
     enabled: expandedPlayers.size > 0,
   });
 
   const applyVotes = useMutation({
-    mutationFn: (ratings: { group_id: string; player_id: string; attribute_id: string; rating: number }[]) =>
+    mutationFn: (
+      ratings: {
+        group_id: string;
+        player_id: string;
+        attribute_id: string;
+        rating: number;
+      }[],
+    ) =>
       api("/player_ratings", {
         method: "POST",
         body: ratings,
@@ -116,20 +128,18 @@ export function PlayerRatings() {
   });
 
   if (!attributes || !players || !ratings)
-    return <div className="loading">Cargando...</div>;
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
 
   if (!attributes.length) {
     return (
       <div>
-        <div className="page-header">
-          <Link to={`/groups/${groupId}`} className="back-link">
-            &larr; Volver al grupo
-          </Link>
-        </div>
+        <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
         <h1>Puntuaciones</h1>
-        <p className="empty-state">
+        <p className="text-text-secondary p-6 text-center italic">
           Primero necesitas{" "}
-          <Link to={`/groups/${groupId}/attributes`}>crear atributos</Link>.
+          <a href={`/groups/${groupId}/attributes`}>crear atributos</a>.
         </p>
       </div>
     );
@@ -140,22 +150,20 @@ export function PlayerRatings() {
     ratingMap.set(`${r.player_id}:${r.attribute_id}`, r.rating);
   }
 
-  function getRating(playerId: string, attributeId: string): number | undefined {
+  function getRating(
+    playerId: string,
+    attributeId: string,
+  ): number | undefined {
     return ratingMap.get(`${playerId}:${attributeId}`);
   }
 
   return (
     <div>
-      <div className="page-header">
-        <Link to={`/groups/${groupId}`} className="back-link">
-          &larr; Volver al grupo
-        </Link>
-      </div>
-
+      <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
       <h1>Puntuaciones</h1>
 
-      <div style={{ overflowX: "auto" }}>
-        <table className="ratings-table">
+      <div className="overflow-x-auto">
+        <table className={tableClasses}>
           <thead>
             <tr>
               <th>Jugador</th>
@@ -172,22 +180,21 @@ export function PlayerRatings() {
             {players.map((p) => {
               const total = attributes.reduce(
                 (sum, attr) => sum + (getRating(p.id, attr.id) ?? 0),
-                0
+                0,
               );
-
               const isExpanded = expandedPlayers.has(p.id);
 
-              const playerAvgs = isExpanded && voteAverages
-                ? voteAverages.filter((va) => va.player_id === p.id)
-                : [];
+              const playerAvgs =
+                isExpanded && voteAverages
+                  ? voteAverages.filter((va) => va.player_id === p.id)
+                  : [];
               const avgMap = new Map<string, VoteAverage>();
-              for (const va of playerAvgs) {
-                avgMap.set(va.attribute_id, va);
-              }
+              for (const va of playerAvgs) avgMap.set(va.attribute_id, va);
 
-              const playerVotes = isExpanded && individualVotes
-                ? individualVotes.filter((v) => v.player_id === p.id)
-                : [];
+              const playerVotes =
+                isExpanded && individualVotes
+                  ? individualVotes.filter((v) => v.player_id === p.id)
+                  : [];
               const voterIds = [...new Set(playerVotes.map((v) => v.voter_id))];
 
               function toggleExpanded() {
@@ -201,15 +208,14 @@ export function PlayerRatings() {
 
               return (
                 <React.Fragment key={p.id}>
-                  {/* Main rating row */}
                   <tr>
                     <td>
-                      <div className="member-info">
+                      <div className="flex items-center gap-2">
                         {p.users?.avatar_url && (
                           <img
                             src={p.users.avatar_url}
                             alt=""
-                            className="member-avatar"
+                            className="h-6 w-6 rounded-full"
                           />
                         )}
                         <span>{p.name}</span>
@@ -229,32 +235,36 @@ export function PlayerRatings() {
                       <strong>{total}</strong>
                     </td>
                     <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={toggleExpanded}
                       >
                         {isExpanded ? "Ocultar votos" : "Ver votos"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
 
-                  {/* Vote averages row (inline) */}
                   {isExpanded && playerAvgs.length > 0 && (
-                    <tr style={{ background: "#f8f9fa" }}>
-                      <td style={{ fontSize: "0.85rem", color: "#666", paddingLeft: "2rem" }}>
-                        Promedio
-                      </td>
+                    <tr className="bg-gray-50">
+                      <td className="text-text-secondary !pl-8">Promedio</td>
                       {attributes.map((attr) => {
                         const va = avgMap.get(attr.id);
                         return (
-                          <td key={attr.id} style={{ fontSize: "0.85rem", color: "#666" }} title={va ? `${va.vote_count} votos` : ""}>
-                            {va ? `${Number(va.avg_rating).toFixed(1)} (${va.vote_count})` : "–"}
+                          <td
+                            key={attr.id}
+                            className="text-text-secondary"
+                            title={va ? `${va.vote_count} votos` : ""}
+                          >
+                            {va
+                              ? `${Number(va.avg_rating).toFixed(1)} (${va.vote_count})`
+                              : "–"}
                           </td>
                         );
                       })}
                       <td>
-                        <button
-                          className="btn btn-primary btn-sm"
+                        <Button
+                          size="sm"
                           disabled={applyVotes.isPending}
                           onClick={() => {
                             const newRatings = playerAvgs.map((va) => ({
@@ -267,35 +277,37 @@ export function PlayerRatings() {
                           }}
                         >
                           Aplicar
-                        </button>
+                        </Button>
                       </td>
                       <td></td>
                     </tr>
                   )}
 
-                  {/* Individual votes rows */}
-                  {isExpanded && voterIds.map((voterId) => {
-                    const voterVotes = playerVotes.filter((v) => v.voter_id === voterId);
-                    const voteMap = new Map<string, number>();
-                    for (const v of voterVotes) {
-                      voteMap.set(v.attribute_id, v.rating);
-                    }
-                    const voterName = voterVotes[0]?.users?.display_name ?? voterId;
-                    return (
-                      <tr key={voterId} style={{ background: "#f0f0f0" }}>
-                        <td style={{ paddingLeft: "2rem", fontSize: "0.8rem", color: "#888" }}>
-                          {voterName}
-                        </td>
-                        {attributes.map((attr) => (
-                          <td key={attr.id} style={{ fontSize: "0.8rem", color: "#888" }}>
-                            {voteMap.get(attr.id) ?? "–"}
+                  {isExpanded &&
+                    voterIds.map((voterId) => {
+                      const voterVotes = playerVotes.filter(
+                        (v) => v.voter_id === voterId,
+                      );
+                      const voteMap = new Map<string, number>();
+                      for (const v of voterVotes)
+                        voteMap.set(v.attribute_id, v.rating);
+                      const voterName =
+                        voterVotes[0]?.users?.display_name ?? voterId;
+                      return (
+                        <tr key={voterId} className="bg-gray-100">
+                          <td className="!pl-8 text-xs text-gray-400">
+                            {voterName}
                           </td>
-                        ))}
-                        <td></td>
-                        <td></td>
-                      </tr>
-                    );
-                  })}
+                          {attributes.map((attr) => (
+                            <td key={attr.id} className="text-xs text-gray-400">
+                              {voteMap.get(attr.id) ?? "–"}
+                            </td>
+                          ))}
+                          <td></td>
+                          <td></td>
+                        </tr>
+                      );
+                    })}
                 </React.Fragment>
               );
             })}
@@ -320,24 +332,23 @@ function RatingCell({
   value: number | undefined;
 }) {
   const queryClient = useQueryClient();
-  const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : "");
+  const [localValue, setLocalValue] = useState<string>(
+    value != null ? String(value) : "",
+  );
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setLocalValue(value != null ? String(value) : "");
+  }
   const [status, setStatus] = useState<SaveStatus>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Sync local value when the server value changes (e.g. after refetch)
-  const lastServerValue = useRef(value);
-  useEffect(() => {
-    if (value !== lastServerValue.current) {
-      lastServerValue.current = value;
-      setLocalValue(value != null ? String(value) : "");
-    }
-  }, [value]);
-
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
-    };
-  }, []);
+    },
+    [],
+  );
 
   function showSaved() {
     setStatus("saved");
@@ -389,7 +400,6 @@ function RatingCell({
   function save() {
     const trimmed = localValue.trim();
     if (trimmed === "") {
-      // Only delete if there was a value before
       if (value != null) {
         setStatus("saving");
         deleteRating.mutate();
@@ -404,27 +414,46 @@ function RatingCell({
   }
 
   return (
-    <div className="rating-cell">
+    <div className="relative inline-block">
       <input
         type="number"
         value={localValue}
-        onChange={(e) => { if (!isSaving) setLocalValue(e.target.value); }}
-        onBlur={() => { if (!isSaving) save(); }}
-        onKeyDown={(e) => { if (e.key === "Enter" && !isSaving) save(); }}
-        className={`rating-input${isSaving ? " rating-input-saving" : ""}${displayStatus === "error" ? " rating-input-error" : ""}`}
+        onChange={(e) => {
+          if (!isSaving) setLocalValue(e.target.value);
+        }}
+        onBlur={() => {
+          if (!isSaving) save();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !isSaving) save();
+        }}
+        className={clsx(
+          "border-border bg-surface w-14 [appearance:textfield] rounded border p-0.5 text-center text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+          isSaving && "opacity-60",
+          displayStatus === "error" && "border-danger",
+        )}
       />
       {displayStatus === "saving" && (
-        <span className="rating-status rating-status-saving" title="Guardando...">
+        <span
+          className="pointer-events-none absolute top-1/2 -right-4 -translate-y-1/2 text-xs text-gray-400"
+          title="Guardando..."
+        >
           &#8987;
         </span>
       )}
       {displayStatus === "saved" && (
-        <span className="rating-status rating-status-saved" title="Guardado">
+        <span
+          className="animate-rating-fade-out pointer-events-none absolute top-1/2 -right-4 -translate-y-1/2 text-xs text-green-600"
+          title="Guardado"
+        >
           &#10003;
         </span>
       )}
       {displayStatus === "error" && (
-        <span className="rating-status rating-status-error" title="Error al guardar">
+        <span
+          className="text-danger pointer-events-none absolute top-1/2 -right-4 -translate-y-1/2 text-xs"
+          title="Error al guardar"
+        >
           &#10007;
         </span>
       )}

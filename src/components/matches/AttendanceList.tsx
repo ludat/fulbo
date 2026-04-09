@@ -1,11 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
 
 type AttendanceRow = {
   player_id: string;
   status: string;
-  players: { id: string; name: string; user_id: string | null; users: { avatar_url: string | null } | null };
+  players: {
+    id: string;
+    name: string;
+    user_id: string | null;
+    users: { avatar_url: string | null } | null;
+  };
 };
 
 type Player = {
@@ -14,17 +20,13 @@ type Player = {
   user_id: string | null;
   users: { avatar_url: string | null } | null;
 };
-
-type Admin = {
-  user_id: string;
-};
+type Admin = { user_id: string };
 
 const statusLabels: Record<string, string> = {
   going: "Voy",
   maybe: "Capaz",
   not_going: "No voy",
 };
-
 const statuses = ["going", "maybe", "not_going"] as const;
 
 export function AttendanceList({
@@ -44,7 +46,8 @@ export function AttendanceList({
       api<AttendanceRow[]>("/attendance", {
         params: {
           match_id: `eq.${matchId}`,
-          select: "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
+          select:
+            "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
           order: "status.asc",
         },
       }),
@@ -54,10 +57,7 @@ export function AttendanceList({
     queryKey: ["group_members", groupId],
     queryFn: () =>
       api<Admin[]>("/group_members", {
-        params: {
-          group_id: `eq.${groupId}`,
-          select: "user_id",
-        },
+        params: { group_id: `eq.${groupId}`, select: "user_id" },
       }),
   });
 
@@ -99,61 +99,75 @@ export function AttendanceList({
     },
   });
 
-  if (isLoading) return <div className="loading">Cargando...</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
 
   const goingCount = rows?.filter((r) => r.status === "going").length ?? 0;
   const maybeCount = rows?.filter((r) => r.status === "maybe").length ?? 0;
 
   const summary = (
-    <div className="attendance-summary">
-      <span className="attendance-summary-chip going">{goingCount} {goingCount === 1 ? "va" : "van"}</span>
-      {maybeCount > 0 && <span className="attendance-summary-chip maybe">{maybeCount} capaz</span>}
+    <div className="mb-3 flex gap-2">
+      <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
+        {goingCount} {goingCount === 1 ? "va" : "van"}
+      </span>
+      {maybeCount > 0 && (
+        <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+          {maybeCount} capaz
+        </span>
+      )}
     </div>
   );
 
-  // Admin view: all players with inline toggle buttons
   if (isAdmin && players) {
-    const attendanceByPlayer = new Map(rows?.map((r) => [r.player_id, r.status]));
-
+    const attendanceByPlayer = new Map(
+      rows?.map((r) => [r.player_id, r.status]),
+    );
     return (
-      <div className="attendance-list">
+      <div>
         {summary}
-        <ul>
+        <ul className="list-none">
           {players.map((p: Player) => {
             const currentStatus = attendanceByPlayer.get(p.id);
             return (
-              <li key={p.id} className="member-item attendance-admin-row">
-                <div className="member-info">
+              <li
+                key={p.id}
+                className="border-border flex items-center justify-between border-b py-2"
+              >
+                <div className="flex items-center gap-2">
                   {p.users?.avatar_url && (
                     <img
                       src={p.users.avatar_url}
                       alt=""
-                      className="member-avatar"
+                      className="h-6 w-6 rounded-full"
                     />
                   )}
                   <span>{p.name}</span>
                 </div>
-                <div className="attendance-toggle">
+                <div className="flex gap-2">
                   {statuses.map((s) => (
-                    <button
+                    <Button
                       key={s}
-                      className={`btn btn-sm ${currentStatus === s ? "btn-active" : "btn-secondary"}`}
+                      size="sm"
+                      variant={currentStatus === s ? "active" : "secondary"}
                       onClick={() =>
                         upsert.mutate({ playerId: p.id, status: s })
                       }
                       disabled={upsert.isPending || remove.isPending}
                     >
                       {statusLabels[s]}
-                    </button>
+                    </Button>
                   ))}
                   {currentStatus && (
-                    <button
-                      className="btn btn-sm btn-danger"
+                    <Button
+                      size="sm"
+                      variant="danger"
                       onClick={() => remove.mutate(p.id)}
                       disabled={upsert.isPending || remove.isPending}
                     >
                       Borrar
-                    </button>
+                    </Button>
                   )}
                 </div>
               </li>
@@ -164,9 +178,12 @@ export function AttendanceList({
     );
   }
 
-  // Non-admin view: simple grouped list
   if (!rows?.length)
-    return <p className="empty-state">Nadie confirmo todavia.</p>;
+    return (
+      <p className="text-text-secondary p-6 text-center italic">
+        Nadie confirmo todavia.
+      </p>
+    );
 
   const grouped = rows.reduce<Record<string, AttendanceRow[]>>((acc, r) => {
     (acc[r.status] ??= []).push(r);
@@ -174,24 +191,27 @@ export function AttendanceList({
   }, {});
 
   return (
-    <div className="attendance-list">
+    <div>
       {summary}
       {(["going", "maybe", "not_going"] as const).map((status) => {
         const group = grouped[status];
         if (!group?.length) return null;
         return (
-          <div key={status} className="attendance-group">
-            <h3>
+          <div key={status}>
+            <h3 className="text-text-secondary mt-4 mb-1 text-sm">
               {statusLabels[status]} ({group.length})
             </h3>
-            <ul>
+            <ul className="list-none">
               {group.map((r: AttendanceRow) => (
-                <li key={r.player_id} className="member-item">
+                <li
+                  key={r.player_id}
+                  className="border-border flex items-center gap-2 border-b py-2"
+                >
                   {r.players.users?.avatar_url && (
                     <img
                       src={r.players.users.avatar_url}
                       alt=""
-                      className="member-avatar"
+                      className="h-6 w-6 rounded-full"
                     />
                   )}
                   <span>{r.players.name}</span>

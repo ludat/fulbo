@@ -1,14 +1,13 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { MatchList } from "./MatchList";
+import { BackLink } from "../ui/BackLink";
 
 export function PastMatches() {
   const { groupId } = useParams<{ groupId: string }>();
 
   return (
     <div>
-      <Link to={`/groups/${groupId}`} className="back-link">
-        &larr; Volver al grupo
-      </Link>
+      <BackLink to={`/groups/${groupId}`}>&larr; Volver al grupo</BackLink>
       <h1>Todos los Partidos</h1>
       <MatchList groupId={groupId!} filter="all" />
     </div>

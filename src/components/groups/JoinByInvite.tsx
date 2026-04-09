@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { rpc } from "../../api/postgrest";
+import { Button, LinkButton } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { BackLink } from "../ui/BackLink";
 
 type JoinResult = {
   group_id: string;
@@ -26,7 +29,8 @@ export function JoinByInvite() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["join_group", token],
-    queryFn: () => rpc<JoinResult[]>("join_group_by_invite", { invite_token: token }),
+    queryFn: () =>
+      rpc<JoinResult[]>("join_group_by_invite", { invite_token: token }),
     enabled: !!token,
     retry: false,
     staleTime: Infinity,
@@ -34,16 +38,21 @@ export function JoinByInvite() {
 
   const result = data?.[0];
 
-  // Fetch unlinked players via invite token (bypasses RLS)
   const { data: unlinkedPlayers, isLoading: loadingPlayers } = useQuery({
     queryKey: ["unlinked_players_for_invite", token],
-    queryFn: () => rpc<UnlinkedPlayer[]>("unlinked_players_for_invite", { invite_token: token }),
+    queryFn: () =>
+      rpc<UnlinkedPlayer[]>("unlinked_players_for_invite", {
+        invite_token: token,
+      }),
     enabled: !!result && !result.already_member,
   });
 
   const claimPlayer = useMutation({
     mutationFn: (playerId: string) =>
-      rpc("complete_join_by_invite", { invite_token: token, p_player_id: playerId }),
+      rpc("complete_join_by_invite", {
+        invite_token: token,
+        p_player_id: playerId,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["players"] });
@@ -61,36 +70,45 @@ export function JoinByInvite() {
     },
   });
 
-  if (isLoading) return <div className="loading">Uniendose al grupo...</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">
+        Uniendose al grupo...
+      </div>
+    );
 
   if (isError) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>
-        <p className="error">{error.message}</p>
-        <Link to="/" className="back-link">Ir al inicio</Link>
+      <div className="p-8 text-center">
+        <p className="text-danger text-sm">{error.message}</p>
+        <BackLink to="/">Ir al inicio</BackLink>
       </div>
     );
   }
 
   if (result?.already_member) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>
+      <div className="p-8 text-center">
         <p>Ya sos miembro de este grupo.</p>
-        <Link to={`/groups/${result.group_id}`} className="btn btn-primary" style={{ marginTop: "1rem" }}>
+        <LinkButton to={`/groups/${result.group_id}`} className="mt-4">
           Ir al grupo
-        </Link>
+        </LinkButton>
       </div>
     );
   }
 
-  if (loadingPlayers) return <div className="loading">Cargando jugadores...</div>;
+  if (loadingPlayers)
+    return (
+      <div className="text-text-secondary p-8 text-center">
+        Cargando jugadores...
+      </div>
+    );
 
-  // Show claim/create flow
   const hasUnlinked = unlinkedPlayers && unlinkedPlayers.length > 0;
 
   if (showCreateForm || !hasUnlinked) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
+      <div className="mx-auto max-w-sm p-8">
         <h2>Crear tu jugador</h2>
         <p>Crea tu perfil de jugador para unirte al grupo.</p>
         <form
@@ -101,63 +119,63 @@ export function JoinByInvite() {
             }
           }}
         >
-          <input
+          <Input
             type="text"
             value={newPlayerName}
             onChange={(e) => setNewPlayerName(e.target.value)}
             placeholder="Tu nombre"
-            className="input"
-            style={{ width: "100%", marginBottom: "1rem" }}
+            className="mb-4 w-full"
             autoFocus
           />
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary"
+            className="w-full justify-center"
             disabled={createPlayer.isPending || !newPlayerName.trim()}
-            style={{ width: "100%" }}
           >
             {createPlayer.isPending ? "Creando..." : "Crear jugador"}
-          </button>
+          </Button>
         </form>
         {hasUnlinked && (
-          <button
-            className="btn btn-secondary"
+          <Button
+            variant="secondary"
+            className="mt-2 w-full justify-center"
             onClick={() => setShowCreateForm(false)}
-            style={{ width: "100%", marginTop: "0.5rem" }}
           >
             Volver a elegir jugador existente
-          </button>
+          </Button>
         )}
       </div>
     );
   }
 
-  // Show list of unlinked players to claim
   return (
-    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
+    <div className="mx-auto max-w-sm p-8">
       <h2>Elegir tu jugador</h2>
       <p>Selecciona tu jugador o crea uno nuevo para unirte al grupo.</p>
-      <ul className="member-list">
+      <ul className="list-none">
         {unlinkedPlayers.map((p) => (
-          <li key={p.id} className="member-item">
+          <li
+            key={p.id}
+            className="border-border flex items-center justify-between border-b py-2"
+          >
             <span>{p.name}</span>
-            <button
-              className="btn btn-primary btn-sm"
+            <Button
+              size="sm"
               onClick={() => claimPlayer.mutate(p.id)}
               disabled={claimPlayer.isPending}
             >
               Soy yo
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
-      <button
-        className="btn btn-secondary"
+      <Button
+        variant="secondary"
+        className="mt-4 w-full justify-center"
         onClick={() => setShowCreateForm(true)}
-        style={{ width: "100%", marginTop: "1rem" }}
       >
         Crear nuevo jugador
-      </button>
+      </Button>
     </div>
   );
 }

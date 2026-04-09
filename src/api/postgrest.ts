@@ -17,7 +17,7 @@ export function setTokenGetter(fn: () => string | undefined) {
 
 export async function api<T = unknown>(
   path: string,
-  opts: RequestOptions = {}
+  opts: RequestOptions = {},
 ): Promise<T> {
   const { method = "GET", body, headers = {}, params } = opts;
 

@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
+import { FormField } from "../ui/FormField";
+import { Input, Textarea } from "../ui/Input";
 
 type Match = {
   id: string;
@@ -16,14 +19,19 @@ function toDatetimeLocal(iso: string) {
 }
 
 export function MatchEditForm() {
-  const { groupId, matchId } = useParams<{ groupId: string; matchId: string }>();
+  const { groupId, matchId } = useParams<{
+    groupId: string;
+    matchId: string;
+  }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: matches, isLoading } = useQuery({
     queryKey: ["matches", groupId, matchId],
     queryFn: () =>
-      api<Match[]>("/matches", { params: { id: `eq.${matchId}`, deleted_at: "is.null" } }),
+      api<Match[]>("/matches", {
+        params: { id: `eq.${matchId}`, deleted_at: "is.null" },
+      }),
   });
 
   const match = matches?.[0];
@@ -39,73 +47,74 @@ export function MatchEditForm() {
         params: { id: `eq.${matchId}` },
         body: {
           location: (location ?? match!.location) || null,
-          starts_at: new Date(startsAt ?? toDatetimeLocal(match!.starts_at)).toISOString(),
+          starts_at: new Date(
+            startsAt ?? toDatetimeLocal(match!.starts_at),
+          ).toISOString(),
           notes: (notes ?? match!.notes) || null,
         },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["matches", groupId, matchId] });
+      queryClient.invalidateQueries({
+        queryKey: ["matches", groupId, matchId],
+      });
       queryClient.invalidateQueries({ queryKey: ["matches", groupId] });
       navigate(`/groups/${groupId}/matches/${matchId}`);
     },
   });
 
-  if (isLoading) return <div className="loading">Cargando...</div>;
-  if (!match) return <div className="error">Partido no encontrado</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
+  if (!match)
+    return <div className="text-danger text-sm">Partido no encontrado</div>;
 
   return (
     <div>
       <h1>Editar Partido</h1>
       <form
-        className="form"
+        className="max-w-lg"
         onSubmit={(e) => {
           e.preventDefault();
           updateMatch.mutate();
         }}
       >
-        <label className="form-field">
-          <span>Fecha y Hora</span>
-          <input
+        <FormField label="Fecha y Hora">
+          <Input
             type="datetime-local"
             value={startsAt ?? toDatetimeLocal(match.starts_at)}
             onChange={(e) => setStartsAt(e.target.value)}
             required
           />
-        </label>
-        <label className="form-field">
-          <span>Lugar</span>
-          <input
+        </FormField>
+        <FormField label="Lugar">
+          <Input
             type="text"
             value={location ?? match.location ?? ""}
             onChange={(e) => setLocation(e.target.value)}
           />
-        </label>
-        <label className="form-field">
-          <span>Notas</span>
-          <textarea
+        </FormField>
+        <FormField label="Notas">
+          <Textarea
             value={notes ?? match.notes ?? ""}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
           />
-        </label>
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={updateMatch.isPending}
-          >
+        </FormField>
+        <div className="mt-4 flex gap-2">
+          <Button type="submit" disabled={updateMatch.isPending}>
             {updateMatch.isPending ? "Guardando..." : "Guardar"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => navigate(`/groups/${groupId}/matches/${matchId}`)}
           >
             Cancelar
-          </button>
+          </Button>
         </div>
         {updateMatch.isError && (
-          <p className="error">{updateMatch.error.message}</p>
+          <p className="text-danger text-sm">{updateMatch.error.message}</p>
         )}
       </form>
     </div>

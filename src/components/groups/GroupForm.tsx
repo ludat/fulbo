@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
+import { FormField } from "../ui/FormField";
+import { Input, Textarea } from "../ui/Input";
 
 export function GroupForm() {
   const navigate = useNavigate();
@@ -29,47 +32,41 @@ export function GroupForm() {
     <div>
       <h1>Crear Grupo</h1>
       <form
-        className="form"
+        className="max-w-lg"
         onSubmit={(e) => {
           e.preventDefault();
           createGroup.mutate();
         }}
       >
-        <label className="form-field">
-          <span>Nombre</span>
-          <input
+        <FormField label="Nombre">
+          <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
-        </label>
-        <label className="form-field">
-          <span>Descripcion</span>
-          <textarea
+        </FormField>
+        <FormField label="Descripcion">
+          <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
-        </label>
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={createGroup.isPending}
-          >
+        </FormField>
+        <div className="mt-4 flex gap-2">
+          <Button type="submit" disabled={createGroup.isPending}>
             {createGroup.isPending ? "Creando..." : "Crear"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => navigate("/")}
           >
             Cancelar
-          </button>
+          </Button>
         </div>
         {createGroup.isError && (
-          <p className="error">{createGroup.error.message}</p>
+          <p className="text-danger text-sm">{createGroup.error.message}</p>
         )}
       </form>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "./Button";
 
 type ConfirmButtonProps = {
   onConfirm: () => void;
@@ -17,10 +18,11 @@ export function ConfirmButton({
 
   if (confirming) {
     return (
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div className="flex items-center gap-2">
         <span>¿Seguro?</span>
-        <button
-          className="btn btn-danger btn-sm"
+        <Button
+          variant="danger"
+          size="sm"
           onClick={() => {
             setConfirming(false);
             onConfirm();
@@ -28,24 +30,25 @@ export function ConfirmButton({
           disabled={disabled}
         >
           {confirmLabel}
-        </button>
-        <button
-          className="btn btn-secondary btn-sm"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setConfirming(false)}
         >
           Cancelar
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
-    <button
-      className="btn btn-danger"
+    <Button
+      variant="danger"
       onClick={() => setConfirming(true)}
       disabled={disabled}
     >
       {label}
-    </button>
+    </Button>
   );
 }

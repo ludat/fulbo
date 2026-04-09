@@ -15,11 +15,16 @@ export function useReturnToRedirect() {
     if (auth.isAuthenticated) {
       const returnTo = sessionStorage.getItem("fulbo_return_to");
       sessionStorage.removeItem("fulbo_return_to");
-      const currentUrl =
-        location.pathname + location.search + location.hash;
+      const currentUrl = location.pathname + location.search + location.hash;
       if (returnTo && returnTo !== currentUrl) {
         navigate(returnTo, { replace: true });
       }
     }
-  }, [auth.isAuthenticated, navigate, location.pathname, location.search, location.hash]);
+  }, [
+    auth.isAuthenticated,
+    navigate,
+    location.pathname,
+    location.search,
+    location.hash,
+  ]);
 }

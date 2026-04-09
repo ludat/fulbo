@@ -61,22 +61,10 @@ function AppRoutes() {
           path="groups/:groupId/attributes"
           element={<AttributesEditor />}
         />
-        <Route
-          path="groups/:groupId/ratings"
-          element={<PlayerRatings />}
-        />
-        <Route
-          path="groups/:groupId/vote"
-          element={<PlayerVoting />}
-        />
-        <Route
-          path="groups/:groupId/matches/new"
-          element={<MatchForm />}
-        />
-        <Route
-          path="groups/:groupId/matches/past"
-          element={<PastMatches />}
-        />
+        <Route path="groups/:groupId/ratings" element={<PlayerRatings />} />
+        <Route path="groups/:groupId/vote" element={<PlayerVoting />} />
+        <Route path="groups/:groupId/matches/new" element={<MatchForm />} />
+        <Route path="groups/:groupId/matches/past" element={<PastMatches />} />
         <Route
           path="groups/:groupId/matches/:matchId"
           element={<MatchDetail />}

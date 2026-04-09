@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api, rpc } from "../../api/postgrest";
 import { ConfirmButton } from "../ui/ConfirmButton";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import { Input } from "../ui/Input";
 
 type Admin = {
   group_id: string;
@@ -34,14 +37,14 @@ export function MemberList({ groupId }: { groupId: string }) {
   const [editingPlayerName, setEditingPlayerName] = useState("");
   const [newPlayerName, setNewPlayerName] = useState("");
 
-  // group_members now only contains admins
   const { data: admins } = useQuery({
     queryKey: ["group_members", groupId],
     queryFn: () =>
       api<Admin[]>("/group_members", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "group_id,user_id,users!group_members_user_id_fkey(display_name,avatar_url)",
+          select:
+            "group_id,user_id,users!group_members_user_id_fkey(display_name,avatar_url)",
         },
       }),
   });
@@ -54,7 +57,8 @@ export function MemberList({ groupId }: { groupId: string }) {
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
-          select: "id,group_id,user_id,name,users!players_user_id_fkey(display_name,avatar_url)",
+          select:
+            "id,group_id,user_id,name,users!players_user_id_fkey(display_name,avatar_url)",
         },
       }),
   });
@@ -193,7 +197,12 @@ export function MemberList({ groupId }: { groupId: string }) {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  if (isLoading) return <div className="loading">Cargando miembros...</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">
+        Cargando miembros...
+      </div>
+    );
 
   const members: {
     userId: string;
@@ -203,7 +212,6 @@ export function MemberList({ groupId }: { groupId: string }) {
   }[] = [];
   const seenUserIds = new Set<string>();
 
-  // Add all linked players as members
   for (const p of players ?? []) {
     if (p.user_id && !seenUserIds.has(p.user_id)) {
       seenUserIds.add(p.user_id);
@@ -216,7 +224,6 @@ export function MemberList({ groupId }: { groupId: string }) {
     }
   }
 
-  // Add admins that don't have a linked player
   for (const a of admins ?? []) {
     if (!seenUserIds.has(a.user_id)) {
       seenUserIds.add(a.user_id);
@@ -232,16 +239,19 @@ export function MemberList({ groupId }: { groupId: string }) {
   return (
     <div>
       <h3>Jugadores</h3>
-      <ul className="member-list">
+      <ul className="list-none">
         {players?.map((p) => {
           const currentUserHasPlayer = players.some(
             (pl) => pl.user_id === currentUserId,
           );
           return (
-            <li key={p.id} className="member-item">
+            <li
+              key={p.id}
+              className="border-border flex items-center justify-between border-b py-2"
+            >
               {editingPlayerId === p.id ? (
                 <form
-                  className="member-info"
+                  className="flex items-center gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (editingPlayerName.trim()) {
@@ -252,63 +262,62 @@ export function MemberList({ groupId }: { groupId: string }) {
                     }
                   }}
                 >
-                  <input
+                  <Input
                     type="text"
                     value={editingPlayerName}
                     onChange={(e) => setEditingPlayerName(e.target.value)}
-                    className="input"
                     autoFocus
                   />
-                  <button
+                  <Button
+                    size="sm"
                     type="submit"
-                    className="btn btn-primary btn-sm"
                     disabled={updatePlayer.isPending}
                   >
                     Guardar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     type="button"
-                    className="btn btn-secondary btn-sm"
                     onClick={() => setEditingPlayerId(null)}
                   >
                     Cancelar
-                  </button>
+                  </Button>
                 </form>
               ) : (
                 <>
-                  <div className="member-info">
+                  <div className="flex items-center gap-2">
                     {p.users?.avatar_url && (
                       <img
                         src={p.users.avatar_url}
                         alt=""
-                        className="member-avatar"
+                        className="h-6 w-6 rounded-full"
                       />
                     )}
                     <span>{p.name}</span>
-                    {!p.user_id && (
-                      <span className="badge badge-admin">sin vincular</span>
-                    )}
+                    {!p.user_id && <Badge variant="admin">sin vincular</Badge>}
                   </div>
-                  <div style={{ display: "flex", gap: "0.25rem" }}>
+                  <div className="flex gap-1">
                     {!p.user_id && !currentUserHasPlayer && (
-                      <button
-                        className="btn btn-primary btn-sm"
+                      <Button
+                        size="sm"
                         onClick={() => claimPlayer.mutate(p.id)}
                         disabled={claimPlayer.isPending}
                       >
                         Soy yo
-                      </button>
+                      </Button>
                     )}
                     {isAdmin && (
-                      <button
-                        className="btn btn-secondary btn-sm"
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={() => {
                           setEditingPlayerId(p.id);
                           setEditingPlayerName(p.name);
                         }}
                       >
                         Editar
-                      </button>
+                      </Button>
                     )}
                     {isAdmin && p.user_id && p.user_id !== currentUserId && (
                       <ConfirmButton
@@ -342,34 +351,40 @@ export function MemberList({ groupId }: { groupId: string }) {
               createPlayer.mutate(newPlayerName.trim());
             }
           }}
-          style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}
+          className="mt-2 flex gap-2"
         >
-          <input
+          <Input
             type="text"
             value={newPlayerName}
             onChange={(e) => setNewPlayerName(e.target.value)}
             placeholder="Nombre del jugador"
-            className="input"
           />
-          <button
+          <Button
+            size="sm"
             type="submit"
-            className="btn btn-primary btn-sm"
             disabled={createPlayer.isPending || !newPlayerName.trim()}
           >
             Agregar Jugador
-          </button>
+          </Button>
         </form>
       )}
 
       <h3>Miembros</h3>
-      <ul className="member-list">
+      <ul className="list-none">
         {members.map((m) => {
           const isCurrentUser = m.userId === currentUserId;
           return (
-            <li key={m.userId} className="member-item">
-              <div className="member-info">
+            <li
+              key={m.userId}
+              className="border-border flex items-center justify-between border-b py-2"
+            >
+              <div className="flex items-center gap-2">
                 {m.avatarUrl && (
-                  <img src={m.avatarUrl} alt="" className="member-avatar" />
+                  <img
+                    src={m.avatarUrl}
+                    alt=""
+                    className="h-6 w-6 rounded-full"
+                  />
                 )}
                 <span>
                   {m.displayName}
@@ -378,26 +393,28 @@ export function MemberList({ groupId }: { groupId: string }) {
                     return player ? ` (${player.name})` : null;
                   })()}
                 </span>
-                {m.isAdmin && <span className="badge badge-admin">admin</span>}
+                {m.isAdmin && <Badge variant="admin">admin</Badge>}
               </div>
               {isAdmin && !isCurrentUser && (
-                <div style={{ display: "flex", gap: "0.25rem" }}>
+                <div className="flex gap-1">
                   {m.isAdmin ? (
-                    <button
-                      className="btn btn-secondary btn-sm"
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() => demoteFromAdmin.mutate(m.userId)}
                       disabled={demoteFromAdmin.isPending}
                     >
                       Quitar Admin
-                    </button>
+                    </Button>
                   ) : (
-                    <button
-                      className="btn btn-secondary btn-sm"
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() => promoteToAdmin.mutate(m.userId)}
                       disabled={promoteToAdmin.isPending}
                     >
                       Hacer Admin
-                    </button>
+                    </Button>
                   )}
                   <ConfirmButton
                     label="Expulsar"
@@ -413,43 +430,50 @@ export function MemberList({ groupId }: { groupId: string }) {
       </ul>
 
       {isAdmin && (
-        <div className="invite-section">
-          <h3>Links de Invitacion</h3>
+        <div className="mt-4">
+          <h3 className="mb-2 text-base">Links de Invitacion</h3>
           {invites?.length ? (
-            <ul className="invite-list">
+            <ul className="list-none">
               {invites.map((inv) => (
-                <li key={inv.id} className="invite-item">
-                  <code className="invite-token">
+                <li
+                  key={inv.id}
+                  className="border-border flex items-center justify-between gap-2 border-b py-2"
+                >
+                  <code className="text-text-secondary min-w-0 overflow-hidden text-xs text-ellipsis whitespace-nowrap">
                     {`${window.location.origin}/invite/${inv.token}`}
                   </code>
-                  <div className="invite-actions">
-                    <button
-                      className="btn btn-secondary btn-sm"
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
                       onClick={() => copyInviteLink(inv.token)}
                     >
                       {copied === inv.token ? "Copiado!" : "Copiar"}
-                    </button>
-                    <button
-                      className="btn btn-danger btn-sm"
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
                       onClick={() => deleteInvite.mutate(inv.id)}
                     >
                       Revocar
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="empty-state">No hay links de invitacion todavia.</p>
+            <p className="text-text-secondary p-6 text-center italic">
+              No hay links de invitacion todavia.
+            </p>
           )}
-          <button
-            className="btn btn-primary btn-sm"
+          <Button
+            size="sm"
+            className="mt-2"
             onClick={() => createInvite.mutate()}
             disabled={createInvite.isPending}
-            style={{ marginTop: "0.5rem" }}
           >
             Crear Link de Invitacion
-          </button>
+          </Button>
         </div>
       )}
     </div>

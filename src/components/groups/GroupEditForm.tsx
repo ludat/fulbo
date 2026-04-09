@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
+import { FormField } from "../ui/FormField";
+import { Input, Textarea } from "../ui/Input";
 
 type Group = {
   id: string;
@@ -17,7 +20,9 @@ export function GroupEditForm() {
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups", groupId],
     queryFn: () =>
-      api<Group[]>("/groups", { params: { id: `eq.${groupId}`, deleted_at: "is.null" } }),
+      api<Group[]>("/groups", {
+        params: { id: `eq.${groupId}`, deleted_at: "is.null" },
+      }),
   });
 
   const group = groups?.[0];
@@ -41,54 +46,52 @@ export function GroupEditForm() {
     },
   });
 
-  if (isLoading) return <div className="loading">Cargando...</div>;
-  if (!group) return <div className="error">Grupo no encontrado</div>;
+  if (isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
+  if (!group)
+    return <div className="text-danger text-sm">Grupo no encontrado</div>;
 
   return (
     <div>
       <h1>Editar Grupo</h1>
       <form
-        className="form"
+        className="max-w-lg"
         onSubmit={(e) => {
           e.preventDefault();
           updateGroup.mutate();
         }}
       >
-        <label className="form-field">
-          <span>Nombre</span>
-          <input
+        <FormField label="Nombre">
+          <Input
             type="text"
             value={name ?? group.name}
             onChange={(e) => setName(e.target.value)}
             required
           />
-        </label>
-        <label className="form-field">
-          <span>Descripcion</span>
-          <textarea
+        </FormField>
+        <FormField label="Descripcion">
+          <Textarea
             value={description ?? group.description ?? ""}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
-        </label>
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={updateGroup.isPending}
-          >
+        </FormField>
+        <div className="mt-4 flex gap-2">
+          <Button type="submit" disabled={updateGroup.isPending}>
             {updateGroup.isPending ? "Guardando..." : "Guardar"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={() => navigate(`/groups/${groupId}`)}
           >
             Cancelar
-          </button>
+          </Button>
         </div>
         {updateGroup.isError && (
-          <p className="error">{updateGroup.error.message}</p>
+          <p className="text-danger text-sm">{updateGroup.error.message}</p>
         )}
       </form>
     </div>

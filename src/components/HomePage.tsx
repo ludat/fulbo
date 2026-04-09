@@ -7,7 +7,9 @@ export function HomePage() {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <div className="loading">Cargando...</div>;
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
   }
 
   if (!auth.isAuthenticated) {
@@ -15,9 +17,9 @@ export function HomePage() {
   }
 
   return (
-    <div className="app-shell">
+    <div>
       <Navbar />
-      <main className="main-content">
+      <main className="mx-auto max-w-3xl p-6">
         <GroupList />
       </main>
     </div>

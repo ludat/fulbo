@@ -1,12 +1,15 @@
 import { type ReactNode } from "react";
 import { useAuth } from "react-oidc-context";
 import { useLocation } from "react-router-dom";
+import { Button } from "../components/ui/Button";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <div className="loading">Cargando...</div>;
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
   }
 
   if (auth.error) {
@@ -38,11 +41,11 @@ function LoginRequired() {
   };
 
   return (
-    <div className="login-required">
-      <h2>Tenés que estar logueado para acceder a esta página</h2>
-      <button className="btn btn-primary" onClick={handleLogin}>
-        Iniciar sesión
-      </button>
+    <div className="px-6 py-16 text-center">
+      <h2 className="text-text-secondary mb-6 text-xl font-medium">
+        Tenés que estar logueado para acceder a esta página
+      </h2>
+      <Button onClick={handleLogin}>Iniciar sesión</Button>
     </div>
   );
 }

@@ -3,9 +3,9 @@ import { Navbar } from "./Navbar";
 
 export function AppShell() {
   return (
-    <div className="app-shell">
+    <div>
       <Navbar />
-      <main className="main-content">
+      <main className="mx-auto max-w-3xl p-6">
         <Outlet />
       </main>
     </div>

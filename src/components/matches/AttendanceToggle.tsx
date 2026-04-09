@@ -1,11 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { Button } from "../ui/Button";
 
-type Attendance = {
-  match_id: string;
-  player_id: string;
-  status: string;
-};
+type Attendance = { match_id: string; player_id: string; status: string };
 
 const statuses = ["going", "maybe", "not_going"] as const;
 const statusLabels: Record<string, string> = {
@@ -14,7 +11,13 @@ const statusLabels: Record<string, string> = {
   not_going: "No voy",
 };
 
-export function AttendanceToggle({ matchId, playerId }: { matchId: string; playerId: string | null }) {
+export function AttendanceToggle({
+  matchId,
+  playerId,
+}: {
+  matchId: string;
+  playerId: string | null;
+}) {
   const queryClient = useQueryClient();
 
   const { data: attendance } = useQuery({
@@ -38,9 +41,7 @@ export function AttendanceToggle({ matchId, playerId }: { matchId: string; playe
         },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendance", matchId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["attendance", matchId] });
     },
   });
 
@@ -51,34 +52,32 @@ export function AttendanceToggle({ matchId, playerId }: { matchId: string; playe
         params: { match_id: `eq.${matchId}`, player_id: `eq.${playerId}` },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendance", matchId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["attendance", matchId] });
     },
   });
 
   if (!playerId) return null;
 
   return (
-    <div className="attendance-toggle">
+    <div className="mb-6 flex gap-2">
       {statuses.map((s) => (
-        <button
+        <Button
           key={s}
-          className={`btn ${currentStatus === s ? "btn-active" : "btn-secondary"}`}
+          variant={currentStatus === s ? "active" : "secondary"}
           onClick={() => upsert.mutate(s)}
           disabled={upsert.isPending || remove.isPending}
         >
           {statusLabels[s]}
-        </button>
+        </Button>
       ))}
       {currentStatus && (
-        <button
-          className="btn btn-danger"
+        <Button
+          variant="danger"
           onClick={() => remove.mutate()}
           disabled={upsert.isPending || remove.isPending}
         >
           Borrar respuesta
-        </button>
+        </Button>
       )}
     </div>
   );
