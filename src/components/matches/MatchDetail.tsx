@@ -16,6 +16,7 @@ type Match = {
   location: string | null;
   starts_at: string;
   notes: string | null;
+  player_quota: number | null;
   created_by: string;
 };
 type Player = { id: string };
@@ -181,6 +182,7 @@ export function MatchDetail() {
           groupId: groupId!,
           currentPlayerId,
           isAdmin,
+          playerQuota: match.player_quota,
         }}
       />
     </div>

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type Attendance = { match_id: string; player_id: string; status: string };
 
@@ -56,29 +58,58 @@ export function AttendanceToggle({
     },
   });
 
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
   if (!playerId) return null;
 
+  const handleStatusChange = (action: () => void) => {
+    if (currentStatus === "going") {
+      setPendingAction(() => action);
+    } else {
+      action();
+    }
+  };
+
   return (
-    <div className="mb-6 flex gap-2">
-      {statuses.map((s) => (
-        <Button
-          key={s}
-          variant={currentStatus === s ? "active" : "secondary"}
-          onClick={() => upsert.mutate(s)}
-          disabled={upsert.isPending || remove.isPending}
-        >
-          {statusLabels[s]}
-        </Button>
-      ))}
-      {currentStatus && (
-        <Button
-          variant="danger"
-          onClick={() => remove.mutate()}
-          disabled={upsert.isPending || remove.isPending}
-        >
-          Borrar respuesta
-        </Button>
+    <>
+      <div className="mb-6 flex gap-2">
+        {statuses.map((s) => (
+          <Button
+            key={s}
+            variant={currentStatus === s ? "active" : "secondary"}
+            onClick={() => {
+              if (s !== "going" && currentStatus === "going") {
+                handleStatusChange(() => upsert.mutate(s));
+              } else {
+                upsert.mutate(s);
+              }
+            }}
+            disabled={upsert.isPending || remove.isPending}
+          >
+            {statusLabels[s]}
+          </Button>
+        ))}
+        {currentStatus && (
+          <Button
+            variant="danger"
+            onClick={() => handleStatusChange(() => remove.mutate())}
+            disabled={upsert.isPending || remove.isPending}
+          >
+            Borrar respuesta
+          </Button>
+        )}
+      </div>
+      {pendingAction && (
+        <ConfirmDialog
+          message="Si dejás de ir, perdés tu lugar. ¿Estás seguro?"
+          confirmLabel="Sí, cambiar"
+          onConfirm={() => {
+            pendingAction();
+            setPendingAction(null);
+          }}
+          onCancel={() => setPendingAction(null)}
+        />
       )}
-    </div>
+    </>
   );
 }

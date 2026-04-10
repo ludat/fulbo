@@ -62,6 +62,11 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDat
         gridTemplateColumns: "repeat(7, 1fr)",
       }}
     >
+      {/* Explanation */}
+      <p className="text-text-secondary col-span-7 mb-1 text-xs">
+        Cada celda muestra cuántos jugadores están disponibles en ese horario.
+      </p>
+
       {/* Week navigation */}
       {onWeekChange && (
         <div className="col-span-7 mb-1 flex items-center justify-between">

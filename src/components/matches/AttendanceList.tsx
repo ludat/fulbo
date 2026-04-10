@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
@@ -34,9 +35,11 @@ const statuses = ["going", "maybe", "not_going"] as const;
 export function AttendanceList({
   matchId,
   groupId,
+  playerQuota,
 }: {
   matchId: string;
   groupId: string;
+  playerQuota?: number | null;
 }) {
   const auth = useAuth();
   const currentUserId = auth.user?.profile.sub;
@@ -110,14 +113,21 @@ export function AttendanceList({
   const maybeCount = rows?.filter((r) => r.status === "maybe").length ?? 0;
 
   const summary = (
-    <div className="mb-3 flex gap-2">
-      <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
-        {goingCount} {goingCount === 1 ? "va" : "van"}
-      </span>
-      {maybeCount > 0 && (
-        <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
-          {maybeCount} capaz
+    <div className="mb-3">
+      <div className="flex gap-2">
+        <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
+          {goingCount} {goingCount === 1 ? "va" : "van"}
         </span>
+        {maybeCount > 0 && (
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+            {maybeCount} capaz
+          </span>
+        )}
+      </div>
+      {goingCount > 0 && (
+        <p className="text-text-secondary mt-2 text-xs">
+          El # indica el orden de llegada. {playerQuota ? `Los primeros ${playerQuota} tienen lugar asegurado.` : ""}
+        </p>
       )}
     </div>
   );
@@ -142,11 +152,17 @@ export function AttendanceList({
             return (
               <li
                 key={p.id}
-                className="border-border flex items-center justify-between border-b py-2"
+                className={clsx(
+                  "border-border flex items-center justify-between border-b py-2",
+                  currentStatus === "going" && playerQuota && pos != null && pos > playerQuota && "opacity-50",
+                )}
               >
                 <div className="flex items-center gap-2">
                   {currentStatus === "going" && pos != null && (
-                    <span className="text-text-secondary w-6 text-right text-sm">
+                    <span className={clsx(
+                      "w-6 text-right text-sm",
+                      playerQuota && pos > playerQuota ? "text-danger" : "text-text-secondary",
+                    )}>
                       #{pos}
                     </span>
                   )}
@@ -216,14 +232,23 @@ export function AttendanceList({
               {statusLabels[status]} ({group.length})
             </h3>
             <ul className="list-none">
-              {group.map((r: AttendanceRow, i: number) => (
+              {group.map((r: AttendanceRow, i: number) => {
+                const pos = i + 1;
+                const isOut = status === "going" && !!playerQuota && pos > playerQuota;
+                return (
                 <li
                   key={r.player_id}
-                  className="border-border flex items-center gap-2 border-b py-2"
+                  className={clsx(
+                    "border-border flex items-center gap-2 border-b py-2",
+                    isOut && "opacity-50",
+                  )}
                 >
                   {status === "going" && (
-                    <span className="text-text-secondary w-6 text-right text-sm">
-                      #{i + 1}
+                    <span className={clsx(
+                      "w-6 text-right text-sm",
+                      isOut ? "text-danger" : "text-text-secondary",
+                    )}>
+                      #{pos}
                     </span>
                   )}
                   {r.players.users?.avatar_url && (
@@ -235,7 +260,8 @@ export function AttendanceList({
                   )}
                   <span>{r.players.name}</span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         );
