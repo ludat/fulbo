@@ -13,7 +13,6 @@ import { GroupMembers } from "./components/groups/GroupMembers";
 import { GroupRatings } from "./components/groups/GroupRatings";
 import { GroupSettings } from "./components/groups/GroupSettings";
 import { MatchForm } from "./components/matches/MatchForm";
-import { MatchEditForm } from "./components/matches/MatchEditForm";
 import { MatchDetail } from "./components/matches/MatchDetail";
 import { MatchPlayers } from "./components/matches/MatchPlayers";
 import { MatchTeams } from "./components/matches/MatchTeams";
@@ -87,7 +86,7 @@ function AppRoutes() {
         </Route>
         <Route
           path="groups/:groupId/matches/:matchId/edit"
-          element={<MatchEditForm />}
+          element={<MatchForm />}
         />
         <Route path="invite/:token" element={<JoinByInvite />} />
       </Route>

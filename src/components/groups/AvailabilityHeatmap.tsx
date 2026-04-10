@@ -15,15 +15,31 @@ function slotToTime(slot: number): string {
   return `${hours}:${minutes}`;
 }
 
+/** Returns the Monday–Sunday dates for the week containing `ref`. */
+function getWeekDates(ref: Date): Date[] {
+  const jsDow = ref.getDay(); // 0=Sun..6=Sat
+  const mondayOffset = jsDow === 0 ? -6 : 1 - jsDow;
+  const monday = new Date(ref);
+  monday.setDate(ref.getDate() + mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
 type Props = {
   groupId: string;
   greenThreshold?: number;
+  referenceDate?: Date;
   selectedSlot?: { dayOfWeek: number; slot: number } | null;
-  onSlotClick?: (dayOfWeek: number, slot: number) => void;
+  onSlotClick?: (dayOfWeek: number, slot: number, date: Date) => void;
+  onWeekChange?: (delta: number) => void;
 };
 
-export function AvailabilityHeatmap({ groupId, greenThreshold = 10, selectedSlot, onSlotClick }: Props) {
+export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDate, selectedSlot, onSlotClick, onWeekChange }: Props) {
   const { data, isLoading } = useGroupAvailability(groupId);
+  const weekDates = getWeekDates(referenceDate ?? new Date());
 
   if (isLoading) {
     return (
@@ -46,13 +62,36 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, selectedSlot
         gridTemplateColumns: "repeat(7, 1fr)",
       }}
     >
+      {/* Week navigation */}
+      {onWeekChange && (
+        <div className="col-span-7 mb-1 flex items-center justify-between">
+          <button
+            type="button"
+            className="text-text-secondary hover:text-text rounded px-2 py-1 text-sm"
+            onClick={() => onWeekChange(-1)}
+          >
+            ← Semana anterior
+          </button>
+          <button
+            type="button"
+            className="text-text-secondary hover:text-text rounded px-2 py-1 text-sm"
+            onClick={() => onWeekChange(1)}
+          >
+            Semana siguiente →
+          </button>
+        </div>
+      )}
+
       {/* Header row */}
-      {DAYS.map((day) => (
+      {DAYS.map((day, i) => (
         <div
           key={day}
-          className="text-text-secondary py-1 text-center text-sm font-bold"
+          className="text-text-secondary py-1 text-center text-sm"
         >
-          {day}
+          <div className="font-bold">{day}</div>
+          <div className="text-xs">
+            {weekDates[i].getDate()}/{weekDates[i].getMonth() + 1}
+          </div>
         </div>
       ))}
 
@@ -70,7 +109,7 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, selectedSlot
           return (
             <div
               key={key}
-              onClick={() => onSlotClick?.(dayIdx, slot)}
+              onClick={() => onSlotClick?.(dayIdx, slot, weekDates[dayIdx])}
               className={clsx(
                 "group relative flex h-5 items-center justify-center rounded-sm border-2 text-xs",
                 onSlotClick && "cursor-pointer",

@@ -1,65 +1,122 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
 import { AvailabilityHeatmap } from "../groups/AvailabilityHeatmap";
 import { Button } from "../ui/Button";
 import { FormField } from "../ui/FormField";
 import { Input, Textarea } from "../ui/Input";
 
+type Match = {
+  id: string;
+  group_id: string;
+  location: string | null;
+  starts_at: string;
+  notes: string | null;
+  player_quota: number | null;
+};
+
+function toDatetimeLocal(iso: string) {
+  return iso.slice(0, 16);
+}
+
 export function MatchForm() {
-  const { groupId } = useParams<{ groupId: string }>();
+  const { groupId, matchId } = useParams<{
+    groupId: string;
+    matchId: string;
+  }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isEdit = Boolean(matchId);
 
-  const [location, setLocation] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [notes, setNotes] = useState("");
-  const [playerQuota, setPlayerQuota] = useState("10");
+  const { data: matches, isLoading } = useQuery({
+    queryKey: ["matches", groupId, matchId],
+    queryFn: () =>
+      api<Match[]>("/matches", {
+        params: { id: `eq.${matchId}`, deleted_at: "is.null" },
+      }),
+    enabled: isEdit,
+  });
 
-  const selectedSlot = startsAt
-    ? (() => {
-        const d = new Date(startsAt);
-        // JS: 0=Sun..6=Sat → heatmap: 0=Mon..6=Sun
-        const dayOfWeek = (d.getDay() + 6) % 7;
-        const slot = d.getHours() * 2 + (d.getMinutes() >= 30 ? 1 : 0);
-        return { dayOfWeek, slot };
-      })()
+  const match = matches?.[0];
+
+  const [location, setLocation] = useState<string | null>(null);
+  const [startsAt, setStartsAt] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
+  const [playerQuota, setPlayerQuota] = useState<string | null>(null);
+
+  const effectiveStartsAt = startsAt ?? (match ? toDatetimeLocal(match.starts_at) : "");
+  const effectiveLocation = location ?? match?.location ?? "";
+  const effectiveNotes = notes ?? match?.notes ?? "";
+  const effectivePlayerQuota = playerQuota ?? (match?.player_quota?.toString() ?? "10");
+
+  const parsedDate = effectiveStartsAt ? new Date(effectiveStartsAt) : null;
+  const selectedSlot = parsedDate
+    ? {
+        dayOfWeek: (parsedDate.getDay() + 6) % 7,
+        slot: parsedDate.getHours() * 2 + (parsedDate.getMinutes() >= 30 ? 1 : 0),
+      }
     : null;
 
-  const createMatch = useMutation({
-    mutationFn: () =>
-      api("/matches", {
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body = {
+        location: effectiveLocation || null,
+        starts_at: new Date(effectiveStartsAt).toISOString(),
+        notes: effectiveNotes || null,
+        player_quota: effectivePlayerQuota ? parseInt(effectivePlayerQuota) : null,
+      };
+
+      if (isEdit) {
+        return api("/matches", {
+          method: "PATCH",
+          params: { id: `eq.${matchId}` },
+          body,
+        });
+      }
+
+      return api("/matches", {
         method: "POST",
-        body: {
-          group_id: groupId,
-          location: location || null,
-          starts_at: new Date(startsAt).toISOString(),
-          notes: notes || null,
-          player_quota: playerQuota ? parseInt(playerQuota) : null,
-        },
+        body: { ...body, group_id: groupId },
         headers: { Prefer: "return=representation" },
-      }),
+      });
+    },
     onSuccess: () => {
+      if (isEdit) {
+        queryClient.invalidateQueries({
+          queryKey: ["matches", groupId, matchId],
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["matches", groupId] });
-      navigate(`/groups/${groupId}`);
+      navigate(
+        isEdit
+          ? `/groups/${groupId}/matches/${matchId}`
+          : `/groups/${groupId}`,
+      );
     },
   });
 
+  if (isEdit && isLoading)
+    return (
+      <div className="text-text-secondary p-8 text-center">Cargando...</div>
+    );
+  if (isEdit && !match)
+    return <div className="text-danger text-sm">Partido no encontrado</div>;
+
   return (
     <div>
-      <h1>Programar Partido</h1>
+      <h1>{isEdit ? "Editar Partido" : "Programar Partido"}</h1>
       <form
         className="max-w-lg"
         onSubmit={(e) => {
           e.preventDefault();
-          createMatch.mutate();
+          mutation.mutate();
         }}
       >
         <FormField label="Fecha y Hora">
           <Input
             type="datetime-local"
-            value={startsAt}
+            value={effectiveStartsAt}
             onChange={(e) => setStartsAt(e.target.value)}
             required
           />
@@ -67,7 +124,7 @@ export function MatchForm() {
         <FormField label="Lugar">
           <Input
             type="text"
-            value={location}
+            value={effectiveLocation}
             onChange={(e) => setLocation(e.target.value)}
           />
         </FormField>
@@ -75,31 +132,43 @@ export function MatchForm() {
           <Input
             type="number"
             min="1"
-            value={playerQuota}
+            value={effectivePlayerQuota}
             onChange={(e) => setPlayerQuota(e.target.value)}
           />
         </FormField>
         <FormField label="Notas">
           <Textarea
-            value={notes}
+            value={effectiveNotes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
           />
         </FormField>
         <div className="mt-4 flex gap-2">
-          <Button type="submit" disabled={createMatch.isPending}>
-            {createMatch.isPending ? "Creando..." : "Programar"}
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending
+              ? isEdit
+                ? "Guardando..."
+                : "Creando..."
+              : isEdit
+                ? "Guardar"
+                : "Programar"}
           </Button>
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate(`/groups/${groupId}`)}
+            onClick={() =>
+              navigate(
+                isEdit
+                  ? `/groups/${groupId}/matches/${matchId}`
+                  : `/groups/${groupId}`,
+              )
+            }
           >
             Cancelar
           </Button>
         </div>
-        {createMatch.isError && (
-          <p className="text-danger text-sm">{createMatch.error.message}</p>
+        {mutation.isError && (
+          <p className="text-danger text-sm">{mutation.error.message}</p>
         )}
       </form>
 
@@ -110,20 +179,22 @@ export function MatchForm() {
           </h2>
           <AvailabilityHeatmap
             groupId={groupId}
-            greenThreshold={parseInt(playerQuota) || 10}
+            greenThreshold={parseInt(effectivePlayerQuota) || 10}
+            referenceDate={parsedDate ?? undefined}
             selectedSlot={selectedSlot}
-            onSlotClick={(dayOfWeek, slot) => {
-              // dayOfWeek: 0=Mon..6=Sun, JS Date: 0=Sun..6=Sat
-              const jsDow = (dayOfWeek + 1) % 7;
-              const now = new Date();
-              const diff = (jsDow - now.getDay() + 7) % 7 || 7;
-              const date = new Date(now);
-              date.setDate(now.getDate() + diff);
+            onSlotClick={(_dayOfWeek, slot, date) => {
               const hours = Math.floor(slot / 2);
               const minutes = slot % 2 === 0 ? 0 : 30;
-              date.setHours(hours, minutes, 0, 0);
               const pad = (n: number) => String(n).padStart(2, "0");
               const value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(hours)}:${pad(minutes)}`;
+              setStartsAt(value);
+            }}
+            onWeekChange={(delta) => {
+              const pad = (n: number) => String(n).padStart(2, "0");
+              const base = parsedDate ?? new Date();
+              const shifted = new Date(base);
+              shifted.setDate(shifted.getDate() + delta * 7);
+              const value = `${shifted.getFullYear()}-${pad(shifted.getMonth() + 1)}-${pad(shifted.getDate())}T${pad(shifted.getHours())}:${pad(shifted.getMinutes())}`;
               setStartsAt(value);
             }}
           />
