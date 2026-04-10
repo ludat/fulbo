@@ -48,6 +48,7 @@ export function GroupNav({
       >
         Stats
       </Tab>
+      <Tab to={`/groups/${groupId}/disponibilidad`}>Disponibilidad</Tab>
       {isAdmin && <Tab to={`/groups/${groupId}/settings`}>Configuración</Tab>}
     </nav>
   );

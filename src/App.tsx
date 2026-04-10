@@ -22,6 +22,7 @@ import { JoinByInvite } from "./components/groups/JoinByInvite";
 import { AttributesEditor } from "./components/groups/AttributesEditor";
 import { PlayerRatings } from "./components/groups/PlayerRatings";
 import { PlayerVoting } from "./components/groups/PlayerVoting";
+import { WeeklyAvailability } from "./components/groups/WeeklyAvailability";
 import { setTokenGetter, rpc } from "./api/postgrest";
 import { useReturnToRedirect } from "./auth/useReturnToRedirect";
 import { FeedbackWidget } from "./components/FeedbackWidget";
@@ -71,6 +72,10 @@ function AppRoutes() {
         />
         <Route path="groups/:groupId/ratings" element={<PlayerRatings />} />
         <Route path="groups/:groupId/vote" element={<PlayerVoting />} />
+        <Route
+          path="groups/:groupId/disponibilidad"
+          element={<WeeklyAvailability />}
+        />
         <Route path="groups/:groupId/matches/new" element={<MatchForm />} />
         <Route path="groups/:groupId/matches/past" element={<PastMatches />} />
         <Route
