@@ -2,7 +2,7 @@ import { useRef, useCallback, useEffect } from "react";
 import clsx from "clsx";
 
 const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-const START_SLOT = 32; // 16:00
+const START_SLOT = 18; // 9:00
 const END_SLOT = 47; // 23:30
 const SLOTS = Array.from(
   { length: END_SLOT - START_SLOT + 1 },
@@ -18,6 +18,7 @@ function slotToTime(slot: number): string {
 type Props = {
   selected: Set<string>;
   pending: Set<string>;
+  summary?: Map<string, { count: number; names: string[] }>;
   onStartDrag: (day: number, slot: number) => void;
   onContinueDrag: (day: number, slot: number) => void;
   onCommitDrag: () => void;
@@ -27,6 +28,7 @@ type Props = {
 export function AvailabilityGrid({
   selected,
   pending,
+  summary,
   onStartDrag,
   onContinueDrag,
   onCommitDrag,
@@ -75,7 +77,7 @@ export function AvailabilityGrid({
         return (
           <div
             key={day}
-            className="text-text-secondary hover:text-text cursor-pointer py-1 text-center text-xs font-medium"
+            className="text-text-secondary hover:text-text cursor-pointer py-1 text-center text-sm font-bold"
             onClick={() => onToggleDay(dayIdx, SLOTS)}
           >
             {day}
@@ -89,11 +91,12 @@ export function AvailabilityGrid({
           const key = `${dayIdx}:${slot}`;
           const isOn = selected.has(key);
           const isPending = pending.has(key);
+          const count = summary?.get(key)?.count ?? 0;
           return (
             <div
               key={key}
               className={clsx(
-                "relative flex h-8 cursor-pointer items-center justify-center rounded-sm border text-xs transition-colors",
+                "relative flex h-5 cursor-pointer items-center justify-center rounded-sm border text-xs transition-colors",
                 isOn
                   ? "border-primary/30 bg-primary/20"
                   : "border-border bg-surface hover:bg-surface-hover text-text-secondary",
@@ -103,6 +106,9 @@ export function AvailabilityGrid({
               onPointerEnter={() => handlePointerEnter(dayIdx, slot)}
             >
               {slotToTime(slot)}
+              <span className="text-text-secondary pointer-events-none absolute right-1 text-[10px]">
+                {count}
+              </span>
               {isPending && (
                 <span className="pointer-events-none absolute right-0.5 text-xs text-gray-400">
                   &#8987;

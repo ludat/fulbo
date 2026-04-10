@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/postgrest";
+import { AvailabilityHeatmap } from "../groups/AvailabilityHeatmap";
 import { Button } from "../ui/Button";
 import { FormField } from "../ui/FormField";
 import { Input, Textarea } from "../ui/Input";
@@ -14,6 +15,17 @@ export function MatchForm() {
   const [location, setLocation] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [playerQuota, setPlayerQuota] = useState("10");
+
+  const selectedSlot = startsAt
+    ? (() => {
+        const d = new Date(startsAt);
+        // JS: 0=Sun..6=Sat → heatmap: 0=Mon..6=Sun
+        const dayOfWeek = (d.getDay() + 6) % 7;
+        const slot = d.getHours() * 2 + (d.getMinutes() >= 30 ? 1 : 0);
+        return { dayOfWeek, slot };
+      })()
+    : null;
 
   const createMatch = useMutation({
     mutationFn: () =>
@@ -24,6 +36,7 @@ export function MatchForm() {
           location: location || null,
           starts_at: new Date(startsAt).toISOString(),
           notes: notes || null,
+          player_quota: playerQuota ? parseInt(playerQuota) : null,
         },
         headers: { Prefer: "return=representation" },
       }),
@@ -58,6 +71,14 @@ export function MatchForm() {
             onChange={(e) => setLocation(e.target.value)}
           />
         </FormField>
+        <FormField label="Jugadores buscados">
+          <Input
+            type="number"
+            min="1"
+            value={playerQuota}
+            onChange={(e) => setPlayerQuota(e.target.value)}
+          />
+        </FormField>
         <FormField label="Notas">
           <Textarea
             value={notes}
@@ -81,6 +102,33 @@ export function MatchForm() {
           <p className="text-danger text-sm">{createMatch.error.message}</p>
         )}
       </form>
+
+      {groupId && (
+        <div className="mt-8">
+          <h2 className="mb-2 text-lg font-semibold">
+            Disponibilidad del grupo
+          </h2>
+          <AvailabilityHeatmap
+            groupId={groupId}
+            greenThreshold={parseInt(playerQuota) || 10}
+            selectedSlot={selectedSlot}
+            onSlotClick={(dayOfWeek, slot) => {
+              // dayOfWeek: 0=Mon..6=Sun, JS Date: 0=Sun..6=Sat
+              const jsDow = (dayOfWeek + 1) % 7;
+              const now = new Date();
+              const diff = (jsDow - now.getDay() + 7) % 7 || 7;
+              const date = new Date(now);
+              date.setDate(now.getDate() + diff);
+              const hours = Math.floor(slot / 2);
+              const minutes = slot % 2 === 0 ? 0 : 30;
+              date.setHours(hours, minutes, 0, 0);
+              const pad = (n: number) => String(n).padStart(2, "0");
+              const value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(hours)}:${pad(minutes)}`;
+              setStartsAt(value);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

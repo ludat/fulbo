@@ -5,6 +5,7 @@ import { api } from "../../api/postgrest";
 import { GroupNav } from "./GroupNav";
 import { AvailabilityGrid } from "./AvailabilityGrid";
 import { useAvailability } from "./useAvailability";
+import { useGroupAvailability } from "./useGroupAvailability";
 
 type Group = {
   id: string;
@@ -67,6 +68,15 @@ export function WeeklyAvailability() {
     toggleDay,
   } = useAvailability(groupId!, playerId);
 
+  const { data: summaryData } = useGroupAvailability(groupId!);
+  const summary = new Map<string, { count: number; names: string[] }>();
+  for (const row of summaryData ?? []) {
+    summary.set(`${row.day_of_week}:${row.time_slot}`, {
+      count: row.player_count,
+      names: row.player_names,
+    });
+  }
+
   if (groupLoading)
     return (
       <div className="text-text-secondary p-8 text-center">Cargando...</div>
@@ -97,12 +107,14 @@ export function WeeklyAvailability() {
         <AvailabilityGrid
           selected={selected}
           pending={pending}
+          summary={summary}
           onStartDrag={startDrag}
           onContinueDrag={continueDrag}
           onCommitDrag={commitDrag}
           onToggleDay={toggleDay}
         />
       )}
+
     </div>
   );
 }

@@ -2,9 +2,23 @@ CREATE TABLE attendance (
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     status TEXT NOT NULL CHECK (status IN ('going', 'not_going', 'maybe')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (match_id, player_id)
 );
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER attendance_set_updated_at
+    BEFORE UPDATE ON attendance
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
 
 GRANT ALL PRIVILEGES ON TABLE attendance TO app_user;
 

@@ -11,3 +11,4 @@
 \i schema/player_vote_averages.sql
 \i schema/match_teams.sql
 \i schema/weekly_availability.sql
+\i schema/availability_summary.sql

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../../api/postgrest";
 
@@ -9,6 +9,7 @@ function toKey(day: number, slot: number) {
 }
 
 export function useAvailability(groupId: string, playerId: string | undefined) {
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
 
@@ -48,6 +49,8 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           player_id: playerId,
           ...s,
         })),
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["availability_summary", groupId] });
       }).finally(() => {
         setPending((prev) => {
           const next = new Set(prev);
@@ -74,6 +77,8 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           player_id: `eq.${playerId}`,
           ...params,
         },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["availability_summary", groupId] });
       }).finally(() => {
         setPending((prev) => {
           const next = new Set(prev);

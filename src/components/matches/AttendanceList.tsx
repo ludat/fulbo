@@ -6,6 +6,8 @@ import { Button } from "../ui/Button";
 type AttendanceRow = {
   player_id: string;
   status: string;
+  created_at: string;
+  updated_at: string;
   players: {
     id: string;
     name: string;
@@ -47,8 +49,8 @@ export function AttendanceList({
         params: {
           match_id: `eq.${matchId}`,
           select:
-            "player_id,status,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
-          order: "status.asc",
+            "player_id,status,updated_at,players(id,name,user_id,users!players_user_id_fkey(avatar_url))",
+          order: "updated_at.asc",
         },
       }),
   });
@@ -124,18 +126,30 @@ export function AttendanceList({
     const attendanceByPlayer = new Map(
       rows?.map((r) => [r.player_id, r.status]),
     );
+    // rows are ordered by updated_at, so going players are in RSVP order
+    const goingPlayerIds =
+      rows?.filter((r) => r.status === "going").map((r) => r.player_id) ?? [];
+    const goingPosition = new Map(
+      goingPlayerIds.map((id, i) => [id, i + 1]),
+    );
     return (
       <div>
         {summary}
         <ul className="list-none">
           {players.map((p: Player) => {
             const currentStatus = attendanceByPlayer.get(p.id);
+            const pos = goingPosition.get(p.id);
             return (
               <li
                 key={p.id}
                 className="border-border flex items-center justify-between border-b py-2"
               >
                 <div className="flex items-center gap-2">
+                  {currentStatus === "going" && pos != null && (
+                    <span className="text-text-secondary w-6 text-right text-sm">
+                      #{pos}
+                    </span>
+                  )}
                   {p.users?.avatar_url && (
                     <img
                       src={p.users.avatar_url}
@@ -202,11 +216,16 @@ export function AttendanceList({
               {statusLabels[status]} ({group.length})
             </h3>
             <ul className="list-none">
-              {group.map((r: AttendanceRow) => (
+              {group.map((r: AttendanceRow, i: number) => (
                 <li
                   key={r.player_id}
                   className="border-border flex items-center gap-2 border-b py-2"
                 >
+                  {status === "going" && (
+                    <span className="text-text-secondary w-6 text-right text-sm">
+                      #{i + 1}
+                    </span>
+                  )}
                   {r.players.users?.avatar_url && (
                     <img
                       src={r.players.users.avatar_url}
