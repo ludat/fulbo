@@ -72,6 +72,7 @@ export function AttendanceList({
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
+          disabled_at: "is.null",
           select: "id,name,user_id,users!players_user_id_fkey(avatar_url)",
         },
       }),
@@ -123,10 +124,28 @@ export function AttendanceList({
             {maybeCount} capaz
           </span>
         )}
+        {playerQuota != null && (
+          <span
+            className={clsx(
+              "rounded-full px-3 py-1 text-sm font-semibold",
+              goingCount < playerQuota
+                ? "bg-red-100 text-red-800"
+                : goingCount === playerQuota
+                  ? "bg-green-100 text-green-800"
+                  : "bg-amber-50 text-amber-700",
+            )}
+          >
+            {goingCount < playerQuota
+              ? `Faltan ${playerQuota - goingCount}`
+              : goingCount === playerQuota
+                ? "Completo"
+                : `Sobran ${goingCount - playerQuota}`}
+          </span>
+        )}
       </div>
       {goingCount > 0 && (
         <p className="text-text-secondary mt-2 text-xs">
-          El # indica el orden de llegada. {playerQuota ? `Los primeros ${playerQuota} tienen lugar asegurado.` : ""}
+          El # indica el orden de llegada.
         </p>
       )}
     </div>
@@ -139,9 +158,7 @@ export function AttendanceList({
     // rows are ordered by updated_at, so going players are in RSVP order
     const goingPlayerIds =
       rows?.filter((r) => r.status === "going").map((r) => r.player_id) ?? [];
-    const goingPosition = new Map(
-      goingPlayerIds.map((id, i) => [id, i + 1]),
-    );
+    const goingPosition = new Map(goingPlayerIds.map((id, i) => [id, i + 1]));
     return (
       <div>
         {summary}
@@ -154,15 +171,23 @@ export function AttendanceList({
                 key={p.id}
                 className={clsx(
                   "border-border flex items-center justify-between border-b py-2",
-                  currentStatus === "going" && playerQuota && pos != null && pos > playerQuota && "opacity-50",
+                  currentStatus === "going" &&
+                    playerQuota &&
+                    pos != null &&
+                    pos > playerQuota &&
+                    "opacity-50",
                 )}
               >
                 <div className="flex items-center gap-2">
                   {currentStatus === "going" && pos != null && (
-                    <span className={clsx(
-                      "w-6 text-right text-sm",
-                      playerQuota && pos > playerQuota ? "text-danger" : "text-text-secondary",
-                    )}>
+                    <span
+                      className={clsx(
+                        "w-6 text-right text-sm",
+                        playerQuota && pos > playerQuota
+                          ? "text-danger"
+                          : "text-text-secondary",
+                      )}
+                    >
                       #{pos}
                     </span>
                   )}
@@ -234,32 +259,35 @@ export function AttendanceList({
             <ul className="list-none">
               {group.map((r: AttendanceRow, i: number) => {
                 const pos = i + 1;
-                const isOut = status === "going" && !!playerQuota && pos > playerQuota;
+                const isOut =
+                  status === "going" && !!playerQuota && pos > playerQuota;
                 return (
-                <li
-                  key={r.player_id}
-                  className={clsx(
-                    "border-border flex items-center gap-2 border-b py-2",
-                    isOut && "opacity-50",
-                  )}
-                >
-                  {status === "going" && (
-                    <span className={clsx(
-                      "w-6 text-right text-sm",
-                      isOut ? "text-danger" : "text-text-secondary",
-                    )}>
-                      #{pos}
-                    </span>
-                  )}
-                  {r.players.users?.avatar_url && (
-                    <img
-                      src={r.players.users.avatar_url}
-                      alt=""
-                      className="h-6 w-6 rounded-full"
-                    />
-                  )}
-                  <span>{r.players.name}</span>
-                </li>
+                  <li
+                    key={r.player_id}
+                    className={clsx(
+                      "border-border flex items-center gap-2 border-b py-2",
+                      isOut && "opacity-50",
+                    )}
+                  >
+                    {status === "going" && (
+                      <span
+                        className={clsx(
+                          "w-6 text-right text-sm",
+                          isOut ? "text-danger" : "text-text-secondary",
+                        )}
+                      >
+                        #{pos}
+                      </span>
+                    )}
+                    {r.players.users?.avatar_url && (
+                      <img
+                        src={r.players.users.avatar_url}
+                        alt=""
+                        className="h-6 w-6 rounded-full"
+                      />
+                    )}
+                    <span>{r.players.name}</span>
+                  </li>
                 );
               })}
             </ul>

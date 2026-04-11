@@ -1,6 +1,6 @@
 CREATE TABLE attendance (
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE RESTRICT,
     status TEXT NOT NULL CHECK (status IN ('going', 'not_going', 'maybe')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

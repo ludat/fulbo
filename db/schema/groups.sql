@@ -28,10 +28,12 @@ CREATE TABLE players (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (group_id, user_id),
-    UNIQUE (group_id, name)
+    disabled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX players_group_user_active ON players (group_id, user_id) WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX players_group_name_active ON players (group_id, name) WHERE disabled_at IS NULL;
 
 -- Helper: check if current user is admin of a group
 -- SECURITY DEFINER to bypass RLS on group_members (avoids infinite recursion)
@@ -179,6 +181,53 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION complete_join_by_invite(TEXT, UUID, TEXT) TO app_user;
+
+-- Disable a player (soft-delete): admin-only, cannot self-disable
+CREATE FUNCTION disable_player(p_player_id UUID) RETURNS VOID AS $$
+DECLARE
+    v_player RECORD;
+BEGIN
+    SELECT * INTO v_player FROM players WHERE id = p_player_id;
+
+    IF v_player IS NULL THEN
+        RAISE EXCEPTION 'Player not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF NOT is_group_admin(v_player.group_id) THEN
+        RAISE EXCEPTION 'Only admins can disable players' USING ERRCODE = 'P0003';
+    END IF;
+
+    IF v_player.user_id = current_user_id() THEN
+        RAISE EXCEPTION 'Cannot disable yourself' USING ERRCODE = 'P0004';
+    END IF;
+
+    -- Soft-disable the player
+    UPDATE players SET disabled_at = now() WHERE id = p_player_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION disable_player(UUID) TO app_user;
+
+-- Re-enable a disabled player (admin-only)
+CREATE FUNCTION enable_player(p_player_id UUID) RETURNS VOID AS $$
+DECLARE
+    v_player RECORD;
+BEGIN
+    SELECT * INTO v_player FROM players WHERE id = p_player_id AND disabled_at IS NOT NULL;
+
+    IF v_player IS NULL THEN
+        RAISE EXCEPTION 'Disabled player not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF NOT is_group_admin(v_player.group_id) THEN
+        RAISE EXCEPTION 'Only admins can enable players' USING ERRCODE = 'P0003';
+    END IF;
+
+    UPDATE players SET disabled_at = NULL WHERE id = p_player_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION enable_player(UUID) TO app_user;
 
 -- RLS: groups
 GRANT ALL PRIVILEGES ON TABLE groups TO app_user;

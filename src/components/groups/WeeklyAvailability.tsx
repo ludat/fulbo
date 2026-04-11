@@ -48,6 +48,7 @@ export function WeeklyAvailability() {
         params: {
           group_id: `eq.${groupId}`,
           user_id: `eq.${currentUserId}`,
+          disabled_at: "is.null",
           select: "id",
         },
       }),
@@ -114,7 +115,6 @@ export function WeeklyAvailability() {
           onToggleDay={toggleDay}
         />
       )}
-
     </div>
   );
 }

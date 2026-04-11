@@ -45,16 +45,19 @@ export function MatchForm() {
   const [notes, setNotes] = useState<string | null>(null);
   const [playerQuota, setPlayerQuota] = useState<string | null>(null);
 
-  const effectiveStartsAt = startsAt ?? (match ? toDatetimeLocal(match.starts_at) : "");
+  const effectiveStartsAt =
+    startsAt ?? (match ? toDatetimeLocal(match.starts_at) : "");
   const effectiveLocation = location ?? match?.location ?? "";
   const effectiveNotes = notes ?? match?.notes ?? "";
-  const effectivePlayerQuota = playerQuota ?? (match?.player_quota?.toString() ?? "10");
+  const effectivePlayerQuota =
+    playerQuota ?? match?.player_quota?.toString() ?? "10";
 
   const parsedDate = effectiveStartsAt ? new Date(effectiveStartsAt) : null;
   const selectedSlot = parsedDate
     ? {
         dayOfWeek: (parsedDate.getDay() + 6) % 7,
-        slot: parsedDate.getHours() * 2 + (parsedDate.getMinutes() >= 30 ? 1 : 0),
+        slot:
+          parsedDate.getHours() * 2 + (parsedDate.getMinutes() >= 30 ? 1 : 0),
       }
     : null;
 
@@ -64,7 +67,9 @@ export function MatchForm() {
         location: effectiveLocation || null,
         starts_at: new Date(effectiveStartsAt).toISOString(),
         notes: effectiveNotes || null,
-        player_quota: effectivePlayerQuota ? parseInt(effectivePlayerQuota) : null,
+        player_quota: effectivePlayerQuota
+          ? parseInt(effectivePlayerQuota)
+          : null,
       };
 
       if (isEdit) {
@@ -89,9 +94,7 @@ export function MatchForm() {
       }
       queryClient.invalidateQueries({ queryKey: ["matches", groupId] });
       navigate(
-        isEdit
-          ? `/groups/${groupId}/matches/${matchId}`
-          : `/groups/${groupId}`,
+        isEdit ? `/groups/${groupId}/matches/${matchId}` : `/groups/${groupId}`,
       );
     },
   });

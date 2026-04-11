@@ -1,6 +1,6 @@
 CREATE TABLE player_ratings (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE RESTRICT,
     attribute_id UUID NOT NULL REFERENCES player_attributes(id) ON DELETE CASCADE,
     rating INT NOT NULL CHECK (rating >= 0),
     PRIMARY KEY (group_id, player_id, attribute_id)

@@ -6,6 +6,7 @@ type ConfirmButtonProps = {
   disabled?: boolean;
   label: string;
   confirmLabel?: string;
+  size?: "sm";
 };
 
 export function ConfirmButton({
@@ -13,6 +14,7 @@ export function ConfirmButton({
   disabled,
   label,
   confirmLabel = "Sí, eliminar",
+  size,
 }: ConfirmButtonProps) {
   const [confirming, setConfirming] = useState(false);
 
@@ -45,6 +47,7 @@ export function ConfirmButton({
   return (
     <Button
       variant="danger"
+      size={size}
       onClick={() => setConfirming(true)}
       disabled={disabled}
     >

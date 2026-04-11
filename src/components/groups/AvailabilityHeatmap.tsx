@@ -37,7 +37,14 @@ type Props = {
   onWeekChange?: (delta: number) => void;
 };
 
-export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDate, selectedSlot, onSlotClick, onWeekChange }: Props) {
+export function AvailabilityHeatmap({
+  groupId,
+  greenThreshold = 10,
+  referenceDate,
+  selectedSlot,
+  onSlotClick,
+  onWeekChange,
+}: Props) {
   const { data, isLoading } = useGroupAvailability(groupId);
   const weekDates = getWeekDates(referenceDate ?? new Date());
 
@@ -89,10 +96,7 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDat
 
       {/* Header row */}
       {DAYS.map((day, i) => (
-        <div
-          key={day}
-          className="text-text-secondary py-1 text-center text-sm"
-        >
+        <div key={day} className="text-text-secondary py-1 text-center text-sm">
           <div className="font-bold">{day}</div>
           <div className="text-xs">
             {weekDates[i].getDate()}/{weekDates[i].getMonth() + 1}
@@ -109,7 +113,8 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDat
           const names = cell?.names ?? [];
           const t = Math.min(count / greenThreshold, 1);
           const hue = t * 140;
-          const isSelected = selectedSlot?.dayOfWeek === dayIdx && selectedSlot?.slot === slot;
+          const isSelected =
+            selectedSlot?.dayOfWeek === dayIdx && selectedSlot?.slot === slot;
 
           return (
             <div
@@ -118,7 +123,7 @@ export function AvailabilityHeatmap({ groupId, greenThreshold = 10, referenceDat
               className={clsx(
                 "group relative flex h-5 items-center justify-center rounded-sm border-2 text-xs",
                 onSlotClick && "cursor-pointer",
-                isSelected && "ring-2 ring-primary ring-offset-1",
+                isSelected && "ring-primary ring-2 ring-offset-1",
               )}
               style={{
                 borderColor:

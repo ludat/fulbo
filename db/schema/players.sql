@@ -1,5 +1,5 @@
 CREATE FUNCTION current_player_id(gid UUID) RETURNS UUID AS $$
-    SELECT id FROM players WHERE group_id = gid AND user_id = current_user_id();
+    SELECT id FROM players WHERE group_id = gid AND user_id = current_user_id() AND disabled_at IS NULL;
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION current_player_id(UUID) TO app_user;

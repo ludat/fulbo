@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
@@ -20,6 +21,7 @@ type Player = {
   group_id: string;
   user_id: string | null;
   name: string;
+  disabled_at: string | null;
   users: { display_name: string; avatar_url: string | null } | null;
 };
 
@@ -30,6 +32,7 @@ export function MemberList({ groupId }: { groupId: string }) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editingPlayerName, setEditingPlayerName] = useState("");
   const [newPlayerName, setNewPlayerName] = useState("");
+  const [showDisabled, setShowDisabled] = useState(false);
 
   const { data: admins } = useQuery({
     queryKey: ["group_members", groupId],
@@ -51,10 +54,24 @@ export function MemberList({ groupId }: { groupId: string }) {
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
+          order: "created_at.asc",
           select:
-            "id,group_id,user_id,name,users!players_user_id_fkey(display_name,avatar_url)",
+            "id,group_id,user_id,name,disabled_at,users!players_user_id_fkey(display_name,avatar_url)",
         },
       }),
+  });
+
+  const [enableError, setEnableError] = useState(false);
+
+  const enablePlayer = useMutation({
+    mutationFn: (playerId: string) =>
+      rpc("enable_player", { p_player_id: playerId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["players", groupId] });
+    },
+    onError: () => {
+      setEnableError(true);
+    },
   });
 
   const promoteToAdmin = useMutation({
@@ -80,17 +97,15 @@ export function MemberList({ groupId }: { groupId: string }) {
     },
   });
 
-  const expelMember = useMutation({
-    mutationFn: (userId: string) =>
-      api("/players", {
-        method: "DELETE",
-        params: { group_id: `eq.${groupId}`, user_id: `eq.${userId}` },
-      }),
+  const disablePlayer = useMutation({
+    mutationFn: (playerId: string) =>
+      rpc("disable_player", { p_player_id: playerId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["players", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["group_members", groupId] });
     },
   });
+
+  const [deleteError, setDeleteError] = useState(false);
 
   const deletePlayer = useMutation({
     mutationFn: (playerId: string) =>
@@ -99,7 +114,11 @@ export function MemberList({ groupId }: { groupId: string }) {
         params: { id: `eq.${playerId}` },
       }),
     onSuccess: () => {
+      setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ["players", groupId] });
+    },
+    onError: () => {
+      setDeleteError(true);
     },
   });
 
@@ -191,115 +210,210 @@ export function MemberList({ groupId }: { groupId: string }) {
   return (
     <div className="flex flex-col gap-8">
       <section>
-        <h3>
-          Jugadores
-          <InfoTooltip text="Los jugadores participan en los partidos y se les asignan equipos. Puede haber jugadores sin vincular a una cuenta." />
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3>
+            Jugadores
+            <InfoTooltip text="Los jugadores participan en los partidos y se les asignan equipos. Puede haber jugadores sin vincular a una cuenta." />
+          </h3>
+          <label className="text-text-secondary flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showDisabled}
+              onChange={(e) => setShowDisabled(e.target.checked)}
+            />
+            Mostrar desactivados
+          </label>
+        </div>
         <ul className="list-none">
-          {players?.map((p) => {
-            const currentUserHasPlayer = players.some(
-              (pl) => pl.user_id === currentUserId,
-            );
-            return (
-              <li
-                key={p.id}
-                className="border-border flex items-center justify-between border-b py-2"
-              >
-                {editingPlayerId === p.id ? (
-                  <form
-                    className="flex items-center gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (editingPlayerName.trim()) {
-                        updatePlayer.mutate({
-                          playerId: p.id,
-                          name: editingPlayerName.trim(),
-                        });
-                      }
-                    }}
-                  >
-                    <Input
-                      type="text"
-                      value={editingPlayerName}
-                      onChange={(e) => setEditingPlayerName(e.target.value)}
-                      autoFocus
-                    />
-                    <Button
-                      size="sm"
-                      type="submit"
-                      disabled={updatePlayer.isPending}
+          {players
+            ?.filter((p) => showDisabled || !p.disabled_at)
+            .map((p) => {
+              const currentUserHasPlayer = players.some(
+                (pl) => pl.user_id === currentUserId && !pl.disabled_at,
+              );
+              return (
+                <li
+                  key={p.id}
+                  className={clsx(
+                    "border-border flex items-center justify-between border-b py-2",
+                    p.disabled_at && "opacity-60",
+                  )}
+                >
+                  {editingPlayerId === p.id ? (
+                    <form
+                      className="flex items-center gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (editingPlayerName.trim()) {
+                          updatePlayer.mutate({
+                            playerId: p.id,
+                            name: editingPlayerName.trim(),
+                          });
+                        }
+                      }}
                     >
-                      Guardar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      type="button"
-                      onClick={() => setEditingPlayerId(null)}
-                    >
-                      Cancelar
-                    </Button>
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      {p.users?.avatar_url && (
-                        <img
-                          src={p.users.avatar_url}
-                          alt=""
-                          className="h-6 w-6 rounded-full"
-                        />
-                      )}
-                      <span>{p.name}</span>
-                      {!p.user_id && (
-                        <Badge variant="admin">sin vincular</Badge>
-                      )}
-                    </div>
-                    <div className="flex gap-1">
-                      {!p.user_id && !currentUserHasPlayer && (
-                        <Button
-                          size="sm"
-                          onClick={() => claimPlayer.mutate(p.id)}
-                          disabled={claimPlayer.isPending}
-                        >
-                          Soy yo
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            setEditingPlayerId(p.id);
-                            setEditingPlayerName(p.name);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      )}
-                      {isAdmin && p.user_id && p.user_id !== currentUserId && (
-                        <ConfirmButton
-                          label="Desvincular"
-                          confirmLabel="Sí, desvincular"
-                          onConfirm={() => unlinkPlayer.mutate(p.id)}
-                          disabled={unlinkPlayer.isPending}
-                        />
-                      )}
-                      {isAdmin && !p.user_id && (
-                        <ConfirmButton
-                          label="Eliminar"
-                          confirmLabel="Sí, eliminar"
-                          onConfirm={() => deletePlayer.mutate(p.id)}
-                          disabled={deletePlayer.isPending}
-                        />
-                      )}
-                    </div>
-                  </>
-                )}
-              </li>
-            );
-          })}
+                      <Input
+                        type="text"
+                        value={editingPlayerName}
+                        onChange={(e) => setEditingPlayerName(e.target.value)}
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        type="submit"
+                        disabled={updatePlayer.isPending}
+                      >
+                        Guardar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        type="button"
+                        onClick={() => setEditingPlayerId(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        {p.users?.avatar_url && (
+                          <img
+                            src={p.users.avatar_url}
+                            alt=""
+                            className="h-6 w-6 rounded-full"
+                          />
+                        )}
+                        <span>{p.name}</span>
+                        {!p.user_id && (
+                          <Badge variant="admin">sin vincular</Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        {p.disabled_at ? (
+                          isAdmin && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => enablePlayer.mutate(p.id)}
+                                disabled={enablePlayer.isPending}
+                              >
+                                Reactivar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => deletePlayer.mutate(p.id)}
+                                disabled={deletePlayer.isPending}
+                              >
+                                Eliminar
+                              </Button>
+                            </>
+                          )
+                        ) : (
+                          <>
+                            {!p.user_id && !currentUserHasPlayer && (
+                              <Button
+                                size="sm"
+                                onClick={() => claimPlayer.mutate(p.id)}
+                                disabled={claimPlayer.isPending}
+                              >
+                                Soy yo
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  setEditingPlayerId(p.id);
+                                  setEditingPlayerName(p.name);
+                                }}
+                              >
+                                Editar
+                              </Button>
+                            )}
+                            {isAdmin &&
+                              p.user_id &&
+                              p.user_id !== currentUserId && (
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => disablePlayer.mutate(p.id)}
+                                  disabled={disablePlayer.isPending}
+                                >
+                                  Desactivar
+                                  <InfoTooltip text="El jugador no participará en partidos, pero seguirá teniendo acceso al grupo." />
+                                </Button>
+                              )}
+                            {isAdmin && !p.user_id && (
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => disablePlayer.mutate(p.id)}
+                                disabled={disablePlayer.isPending}
+                              >
+                                Desactivar
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </li>
+              );
+            })}
         </ul>
+
+        {deleteError && (
+          <div
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40"
+            onClick={() => setDeleteError(false)}
+          >
+            <div
+              className="bg-surface w-full max-w-sm rounded-lg p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="mb-5">
+                No se puede eliminar este jugador porque participó en partidos.
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => setDeleteError(false)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {enableError && (
+          <div
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40"
+            onClick={() => setEnableError(false)}
+          >
+            <div
+              className="bg-surface w-full max-w-sm rounded-lg p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="mb-5">
+                No se puede reactivar este jugador porque ya existe otro jugador
+                con el mismo nombre. Renombrá uno de los dos primero.
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => setEnableError(false)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isAdmin && (
           <form
@@ -381,12 +495,20 @@ export function MemberList({ groupId }: { groupId: string }) {
                         Hacer Admin
                       </Button>
                     )}
-                    <ConfirmButton
-                      label="Expulsar"
-                      confirmLabel="Sí, expulsar"
-                      onConfirm={() => expelMember.mutate(m.userId)}
-                      disabled={expelMember.isPending}
-                    />
+                    {(() => {
+                      const player = players?.find(
+                        (p) => p.user_id === m.userId,
+                      );
+                      return player ? (
+                        <ConfirmButton
+                          size="sm"
+                          label="Expulsar"
+                          confirmLabel="Sí, expulsar"
+                          onConfirm={() => unlinkPlayer.mutate(player.id)}
+                          disabled={unlinkPlayer.isPending}
+                        />
+                      ) : null;
+                    })()}
                   </div>
                 )}
               </li>

@@ -49,15 +49,19 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           player_id: playerId,
           ...s,
         })),
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["availability_summary", groupId] });
-      }).finally(() => {
-        setPending((prev) => {
-          const next = new Set(prev);
-          for (const k of keys) next.delete(k);
-          return next;
+      })
+        .then(() => {
+          queryClient.invalidateQueries({
+            queryKey: ["availability_summary", groupId],
+          });
+        })
+        .finally(() => {
+          setPending((prev) => {
+            const next = new Set(prev);
+            for (const k of keys) next.delete(k);
+            return next;
+          });
         });
-      });
     },
     [groupId, playerId],
   );
@@ -77,15 +81,19 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           player_id: `eq.${playerId}`,
           ...params,
         },
-      }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["availability_summary", groupId] });
-      }).finally(() => {
-        setPending((prev) => {
-          const next = new Set(prev);
-          for (const k of keys) next.delete(k);
-          return next;
+      })
+        .then(() => {
+          queryClient.invalidateQueries({
+            queryKey: ["availability_summary", groupId],
+          });
+        })
+        .finally(() => {
+          setPending((prev) => {
+            const next = new Set(prev);
+            for (const k of keys) next.delete(k);
+            return next;
+          });
         });
-      });
     },
     [groupId, playerId],
   );

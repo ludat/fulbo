@@ -1,6 +1,6 @@
 CREATE TABLE match_teams (
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE RESTRICT,
     team INT NOT NULL CHECK (team IN (1, 2)),
     PRIMARY KEY (match_id, player_id)
 );

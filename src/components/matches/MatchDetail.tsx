@@ -62,6 +62,7 @@ export function MatchDetail() {
         params: {
           group_id: `eq.${groupId}`,
           user_id: `eq.${currentUserId}`,
+          disabled_at: "is.null",
           select: "id",
         },
       }),

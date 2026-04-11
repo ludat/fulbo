@@ -69,6 +69,7 @@ export function PlayerRatings() {
       api<Player[]>("/players", {
         params: {
           group_id: `eq.${groupId}`,
+          disabled_at: "is.null",
           select: "id,name,user_id,users!players_user_id_fkey(avatar_url)",
         },
       }),

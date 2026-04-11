@@ -1,6 +1,6 @@
 CREATE TABLE weekly_availability (
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE RESTRICT,
     day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),  -- 0=Mon, 6=Sun
     time_slot SMALLINT NOT NULL CHECK (time_slot BETWEEN 0 AND 47),     -- 0=00:00, 1=00:30, ...
     PRIMARY KEY (group_id, player_id, day_of_week, time_slot)
