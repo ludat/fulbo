@@ -63,12 +63,14 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           ...s,
         })),
       })
-        .then(() => {
-          queryClient.invalidateQueries({
-            queryKey: ["availability_summary", groupId],
-          });
-          queryClient.invalidateQueries({ queryKey });
-        })
+        .then(() =>
+          Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: ["availability_summary", groupId],
+            }),
+            queryClient.invalidateQueries({ queryKey }),
+          ]),
+        )
         .finally(() => {
           setLocalOverrides(new Map());
           setPending((prev) => {
@@ -97,12 +99,14 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           ...params,
         },
       })
-        .then(() => {
-          queryClient.invalidateQueries({
-            queryKey: ["availability_summary", groupId],
-          });
-          queryClient.invalidateQueries({ queryKey });
-        })
+        .then(() =>
+          Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: ["availability_summary", groupId],
+            }),
+            queryClient.invalidateQueries({ queryKey }),
+          ]),
+        )
         .finally(() => {
           setLocalOverrides(new Map());
           setPending((prev) => {

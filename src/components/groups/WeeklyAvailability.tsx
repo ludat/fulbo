@@ -42,7 +42,7 @@ export function WeeklyAvailability() {
       }),
   });
 
-  const { data: players } = useQuery({
+  const { data: players, isLoading: playersLoading } = useQuery({
     queryKey: ["players", groupId, currentUserId],
     queryFn: () =>
       api<Player[]>("/players", {
@@ -102,7 +102,7 @@ export function WeeklyAvailability() {
         </p>
       </div>
 
-      {!playerId && !availLoading ? (
+      {!playerId && !availLoading && !playersLoading ? (
         <p className="text-text-secondary text-sm italic">
           No sos jugador de este grupo.
         </p>
