@@ -41,14 +41,24 @@ export function GroupNav({
   return (
     <nav className="border-border mb-6 flex gap-1 border-b">
       <Tab to={`/groups/${groupId}`}>Partidos</Tab>
-      <Tab to={`/groups/${groupId}/members`}>Miembros</Tab>
+      <Tab
+        to={`/groups/${groupId}/members`}
+        tooltip="Gestioná los jugadores y miembros del grupo"
+      >
+        Jugadores
+      </Tab>
       <Tab
         to={`/groups/${groupId}/stats`}
         tooltip="Puntuá a los jugadores para armar equipos más parejos"
       >
         Stats
       </Tab>
-      <Tab to={`/groups/${groupId}/disponibilidad`}>Disponibilidad</Tab>
+      <Tab
+        to={`/groups/${groupId}/disponibilidad`}
+        tooltip="Marcá en qué horarios podés jugar para coordinar partidos"
+      >
+        Disponibilidad
+      </Tab>
       {isAdmin && <Tab to={`/groups/${groupId}/settings`}>Configuración</Tab>}
     </nav>
   );

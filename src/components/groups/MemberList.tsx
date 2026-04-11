@@ -444,7 +444,7 @@ export function MemberList({ groupId }: { groupId: string }) {
 
       <section>
         <h3>
-          Jugadores
+          Miembros
           <InfoTooltip text="Los miembros son las personas con cuenta que forman parte del grupo. Los admins pueden gestionar jugadores, equipos y partidos." />
         </h3>
         <ul className="list-none">

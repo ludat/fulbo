@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
 import { GroupNav } from "./GroupNav";
-import { InfoTooltip } from "../ui/InfoTooltip";
 import { AvailabilityGrid } from "./AvailabilityGrid";
 import { useAvailability } from "./useAvailability";
 import { useGroupAvailability } from "./useGroupAvailability";
@@ -92,10 +91,7 @@ export function WeeklyAvailability() {
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
 
       <div className="mb-4">
-        <h2 className="text-lg">
-          Disponibilidad
-          <InfoTooltip text="Marcá los horarios en los que podés jugar durante la semana. Esta info se usa para elegir el mejor día y hora para los partidos." />
-        </h2>
+        <h2 className="text-lg">Disponibilidad</h2>
         <p className="text-text-secondary mt-1 text-sm">
           Marcá los horarios en los que podés jugar. Hacé click o arrastrá para
           seleccionar.
