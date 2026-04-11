@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { api } from "../../api/postgrest";
 
 type SlotRow = { day_of_week: number; time_slot: number };
@@ -10,10 +10,15 @@ function toKey(day: number, slot: number) {
 
 export function useAvailability(groupId: string, playerId: string | undefined) {
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [localOverrides, setLocalOverrides] = useState<Map<string, boolean>>(
+    new Map(),
+  );
   const [pending, setPending] = useState<Set<string>>(new Set());
 
-  const queryKey = ["weekly_availability", groupId, playerId];
+  const queryKey = useMemo(
+    () => ["weekly_availability", groupId, playerId],
+    [groupId, playerId],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey,
@@ -28,11 +33,19 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
     enabled: !!playerId,
   });
 
-  useEffect(() => {
-    if (data) {
-      setSelected(new Set(data.map((r) => toKey(r.day_of_week, r.time_slot))));
+  const serverSelected = useMemo(
+    () => new Set(data?.map((r) => toKey(r.day_of_week, r.time_slot))),
+    [data],
+  );
+
+  const selected = useMemo(() => {
+    const result = new Set(serverSelected);
+    for (const [key, on] of localOverrides) {
+      if (on) result.add(key);
+      else result.delete(key);
     }
-  }, [data]);
+    return result;
+  }, [serverSelected, localOverrides]);
 
   const doAdd = useCallback(
     (slots: SlotRow[]) => {
@@ -54,8 +67,10 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           queryClient.invalidateQueries({
             queryKey: ["availability_summary", groupId],
           });
+          queryClient.invalidateQueries({ queryKey });
         })
         .finally(() => {
+          setLocalOverrides(new Map());
           setPending((prev) => {
             const next = new Set(prev);
             for (const k of keys) next.delete(k);
@@ -63,7 +78,7 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           });
         });
     },
-    [groupId, playerId],
+    [groupId, playerId, queryClient, queryKey],
   );
 
   const doRemove = useCallback(
@@ -86,8 +101,10 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           queryClient.invalidateQueries({
             queryKey: ["availability_summary", groupId],
           });
+          queryClient.invalidateQueries({ queryKey });
         })
         .finally(() => {
+          setLocalOverrides(new Map());
           setPending((prev) => {
             const next = new Set(prev);
             for (const k of keys) next.delete(k);
@@ -95,7 +112,7 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
           });
         });
     },
-    [groupId, playerId],
+    [groupId, playerId, queryClient, queryKey],
   );
 
   // Buffer for drag operations — accumulates cells, flushed on commitDrag
@@ -108,10 +125,9 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
       const painting = !selected.has(key);
       dragPaintMode.current = painting;
       dragBuffer.current = [{ day_of_week: day, time_slot: slot }];
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (painting) next.add(key);
-        else next.delete(key);
+      setLocalOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(key, painting);
         return next;
       });
     },
@@ -124,10 +140,9 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
       const on = dragPaintMode.current;
       if (on === selected.has(key)) return;
       dragBuffer.current.push({ day_of_week: day, time_slot: slot });
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (on) next.add(key);
-        else next.delete(key);
+      setLocalOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(key, on);
         return next;
       });
     },
@@ -156,17 +171,17 @@ export function useAvailability(groupId: string, playerId: string | undefined) {
       const allOn = slots.every((s) => selected.has(toKey(day, s)));
       const slotRows = slots.map((s) => ({ day_of_week: day, time_slot: s }));
       if (allOn) {
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const s of slots) next.delete(toKey(day, s));
+        setLocalOverrides((prev) => {
+          const next = new Map(prev);
+          for (const s of slots) next.set(toKey(day, s), false);
           return next;
         });
         doRemove(slotRows, { day_of_week: `eq.${day}` });
       } else {
         const toAdd = slots.filter((s) => !selected.has(toKey(day, s)));
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const s of slots) next.add(toKey(day, s));
+        setLocalOverrides((prev) => {
+          const next = new Map(prev);
+          for (const s of slots) next.set(toKey(day, s), true);
           return next;
         });
         doAdd(toAdd.map((s) => ({ day_of_week: day, time_slot: s })));

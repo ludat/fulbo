@@ -73,7 +73,6 @@ export function AvailabilityGrid({
     >
       {/* Header row */}
       {DAYS.map((day, dayIdx) => {
-        const allOn = SLOTS.every((slot) => selected.has(`${dayIdx}:${slot}`));
         return (
           <div
             key={day}
