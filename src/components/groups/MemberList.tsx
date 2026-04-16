@@ -212,7 +212,7 @@ export function MemberList({ groupId }: { groupId: string }) {
       <section>
         <div className="flex items-center justify-between">
           <h3>
-            Jugadores
+            Jugadores ({showDisabled ? players?.length ?? 0 : players?.filter((p) => !p.disabled_at).length ?? 0})
             <InfoTooltip text="Los jugadores participan en los partidos y se les asignan equipos. Puede haber jugadores sin vincular a una cuenta." />
           </h3>
           <label className="text-text-secondary flex items-center gap-2 text-sm">
@@ -444,7 +444,7 @@ export function MemberList({ groupId }: { groupId: string }) {
 
       <section>
         <h3>
-          Miembros
+          Miembros ({members.length})
           <InfoTooltip text="Los miembros son las personas con cuenta que forman parte del grupo. Los admins pueden gestionar jugadores, equipos y partidos." />
         </h3>
         <ul className="list-none">
