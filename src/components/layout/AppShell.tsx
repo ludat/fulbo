@@ -3,7 +3,7 @@ import { Navbar } from "./Navbar";
 
 export function AppShell() {
   return (
-    <div>
+    <div className="overflow-x-auto">
       <Navbar />
       <main className="mx-auto max-w-3xl p-6">
         <Outlet />

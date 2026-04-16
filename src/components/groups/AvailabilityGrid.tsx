@@ -1,5 +1,6 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback } from "react";
 import clsx from "clsx";
+import { useEventListener } from "usehooks-ts";
 
 const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const START_SLOT = 18; // 9:00
@@ -36,9 +37,18 @@ export function AvailabilityGrid({
 }: Props) {
   const dragging = useRef(false);
 
+  useEventListener("pointerup", () => {
+    if (dragging.current) {
+      dragging.current = false;
+      onCommitDrag();
+    }
+  });
+
   const handlePointerDown = useCallback(
-    (day: number, slot: number) => {
+    (e: React.PointerEvent, day: number, slot: number) => {
       dragging.current = true;
+      // Release implicit touch pointer capture so pointerenter fires on other cells
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       onStartDrag(day, slot);
     },
     [onStartDrag],
@@ -52,22 +62,11 @@ export function AvailabilityGrid({
     [onContinueDrag],
   );
 
-  useEffect(() => {
-    const handleUp = () => {
-      if (dragging.current) {
-        dragging.current = false;
-        onCommitDrag();
-      }
-    };
-    document.addEventListener("pointerup", handleUp);
-    return () => document.removeEventListener("pointerup", handleUp);
-  }, [onCommitDrag]);
-
   return (
     <div
       className="grid gap-px select-none"
       style={{
-        gridTemplateColumns: "repeat(7, 1fr)",
+        gridTemplateColumns: "repeat(7, minmax(4.5rem, 1fr))",
         touchAction: "none",
       }}
     >
@@ -95,13 +94,13 @@ export function AvailabilityGrid({
             <div
               key={key}
               className={clsx(
-                "relative flex h-5 cursor-pointer items-center justify-center rounded-sm border text-xs transition-colors",
+                "relative flex h-5 cursor-pointer items-center justify-center rounded-sm border px-3 text-xs transition-colors",
                 isOn
                   ? "border-primary/30 bg-primary/20"
                   : "border-border bg-surface hover:bg-surface-hover text-text-secondary",
                 isPending && "animate-pulse",
               )}
-              onPointerDown={() => handlePointerDown(dayIdx, slot)}
+              onPointerDown={(e) => handlePointerDown(e, dayIdx, slot)}
               onPointerEnter={() => handlePointerEnter(dayIdx, slot)}
             >
               {slotToTime(slot)}

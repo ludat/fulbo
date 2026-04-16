@@ -7,7 +7,7 @@ export function Navbar() {
   const user = auth.user?.profile;
 
   return (
-    <nav className="bg-primary flex items-center justify-between px-6 py-3 text-white">
+    <nav className="bg-primary sticky left-0 flex items-center justify-between px-6 py-3 text-white">
       <Link to="/" className="text-xl font-bold text-white no-underline">
         Fulbo
       </Link>
