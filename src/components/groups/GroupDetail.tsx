@@ -6,6 +6,7 @@ import { MatchList } from "../matches/MatchList";
 import { LinkButton } from "../ui/Button";
 import { BackLink } from "../ui/BackLink";
 import { InfoTooltip } from "../ui/InfoTooltip";
+import { GroupHeader } from "./GroupHeader";
 import { GroupNav } from "./GroupNav";
 
 type Group = {
@@ -58,13 +59,10 @@ export function GroupDetail() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h1>{group.name}</h1>
-        {group.description && (
-          <p className="text-text-secondary">{group.description}</p>
-        )}
-      </div>
-
+      <GroupHeader
+        groupName={group.name}
+        groupDescription={group.description}
+      />
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
 
       <section>

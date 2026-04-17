@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
+import { GroupHeader } from "./GroupHeader";
 import { GroupNav } from "./GroupNav";
 import { LinkButton } from "../ui/Button";
 import clsx from "clsx";
@@ -67,7 +68,10 @@ export function GroupRatings() {
   //       ) :
   return (
     <div>
-      <h1 className="mb-4">{group.name}</h1>
+      <GroupHeader
+        groupName={group.name}
+        groupDescription={group.description}
+      />
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
 
       {

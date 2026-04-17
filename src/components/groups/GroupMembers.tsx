@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
 import { MemberList } from "./MemberList";
+import { GroupHeader } from "./GroupHeader";
 import { GroupNav } from "./GroupNav";
 
 type Group = {
@@ -48,7 +49,10 @@ export function GroupMembers() {
 
   return (
     <div>
-      <h1 className="mb-4">{group.name}</h1>
+      <GroupHeader
+        groupName={group.name}
+        groupDescription={group.description}
+      />
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
       <MemberList groupId={groupId!} />
     </div>

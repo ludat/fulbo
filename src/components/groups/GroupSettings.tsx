@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
+import { GroupHeader } from "./GroupHeader";
 import { GroupNav } from "./GroupNav";
 import { Button } from "../ui/Button";
 import { FormField } from "../ui/FormField";
@@ -94,7 +95,10 @@ export function GroupSettings() {
 
   return (
     <div>
-      <h1 className="mb-4">{group.name}</h1>
+      <GroupHeader
+        groupName={group.name}
+        groupDescription={group.description}
+      />
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
 
       {/* Edit group */}

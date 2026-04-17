@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { api } from "../../api/postgrest";
+import { GroupHeader } from "./GroupHeader";
 import { GroupNav } from "./GroupNav";
 import { AvailabilityGrid } from "./AvailabilityGrid";
 import { useAvailability } from "./useAvailability";
@@ -10,6 +11,7 @@ import { useGroupAvailability } from "./useGroupAvailability";
 type Group = {
   id: string;
   name: string;
+  description: string | null;
 };
 
 type Admin = {
@@ -87,7 +89,10 @@ export function WeeklyAvailability() {
 
   return (
     <div>
-      <h1 className="mb-4">{group.name}</h1>
+      <GroupHeader
+        groupName={group.name}
+        groupDescription={group.description}
+      />
       <GroupNav groupId={groupId!} isAdmin={isAdmin} />
 
       <div className="mb-4">
