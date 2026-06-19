@@ -1,4 +1,3 @@
-production: true
 services:
   backend:
     image:
